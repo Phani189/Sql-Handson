@@ -1,0 +1,761 @@
+CREATE OR REPLACE DATABASE SQL_HN_1;
+
+CREATE OR REPLACE SCHEMA SQL_HN_SCH_1;
+
+--Q.NO:1
+--Second Highest SaLary
+
+CREATE OR REPLACE TABLE Employees (
+    id INT PRIMARY KEY,
+    name VARCHAR(50),
+    salary DECIMAL(10, 2)
+);
+
+
+INSERT INTO Employees (id, name, salary) VALUES (1, 'Alice', 50000.00);
+INSERT INTO Employees (id, name, salary) VALUES (2, 'Bob', 60000.00);
+INSERT INTO Employees (id, name, salary) VALUES (3, 'Charlie', 70000.00);
+INSERT INTO Employees (id, name, salary) VALUES (4, 'David', 70000.00);
+INSERT INTO Employees (id, name, salary) VALUES (5, 'Eve', 90000.00);
+
+WITH SECOND_HIGHEST AS
+(
+SELECT *,DENSE_RANK() OVER(ORDER BY SALARY DESC) AS RANKED
+FROM EMPLOYEES
+)
+SELECT * FROM SECOND_HIGHEST WHERE RANKED=2;
+
+--Q.No:2
+--Top 3 cities with highest sales per Month
+
+CREATE TABLE sales (
+    sale_id INT,
+    city VARCHAR(50),
+    sale_date DATE,
+    amount INT
+);
+
+INSERT INTO sales VALUES
+(1, 'Mumbai', '2024-01-10', 5000),
+(2, 'Delhi', '2024-01-25', 6000),
+(3, 'Bangalore', '2024-01-20', 10000),
+(4, 'Mangalore', '2024-02-05', 2000),
+(5, 'Mumbai', '2024-02-08', 4000),
+(6, 'Patna', '2024-02-07', 3000),
+(7, 'Mumbai', '2024-03-08', 5000);
+
+WITH HIGHEST_SALES AS
+(
+    SELECT CITY, DATE_TRUNC('MONTH', SALE_DATE) AS SALEMONTH, SUM(AMOUNT) AS TOTAL,
+           ROW_NUMBER() OVER(PARTITION BY DATE_TRUNC('MONTH', SALE_DATE) ORDER BY SUM(AMOUNT) DESC) AS RN
+    FROM SALES
+    GROUP BY CITY, DATE_TRUNC('MONTH', SALE_DATE)
+)
+SELECT * FROM HIGHEST_SALES
+WHERE RN <= 3;
+
+--Q.No:3
+--Total Sales in each city
+
+SELECT CITY,SUM(AMOUNT) AS TOTAL_SALES
+FROM SALES
+GROUP BY CITY
+ORDER BY SUM(AMOUNT) DESC;
+
+--Q.NO:4
+--Find Employees who has same salary as someone in same department
+
+
+CREATE TABLE employees2 (
+emp_id INT,
+emp_name VARCHAR(50),
+salary INT,
+department VARCHAR(50)
+);
+
+INSERT INTO employees2 VALUES
+(1, 'Neha', 50000, 'HR'),
+(2, 'Ravi', 70000, 'IT'),
+(3, 'Aman', 50000, 'HR'),
+(4, 'Pooja', 90000, 'IT'),
+(5, 'Karan', 70000, 'IT');
+
+WITH SAME_SALARY_PERSON AS
+(
+SELECT *,DENSE_RANK() OVER(PARTITION BY DEPARTMENT ORDER BY SALARY DESC) AS RANKED
+FROM EMPLOYEES2
+)
+SELECT A.EMP_ID,A.EMP_NAME,A.SALARY,A.DEPARTMENT FROM SAME_SALARY_PERSON A JOIN SAME_SALARY_PERSON
+B WHERE A.RANKED=B.RANKED AND  A.DEPARTMENT=B.DEPARTMENT AND A.EMP_ID<>B.EMP_ID;
+
+--Q.NO:5
+--Write a query for finding duplicates values
+
+CREATE OR REPLACE TABLE users (
+    users_id INT,
+    users_name VARCHAR(10),
+    email VARCHAR(50)
+);
+
+INSERT INTO users (users_id, users_name, email) VALUES
+(1, 'Sameer', 'sameer@gmail.com'),
+(2, 'Anjali', 'anjali@gmail.com'),
+(3, 'Sameer', 'sameer@gmail.com'),
+(4, 'Rohan', 'rohan@gmail.com'),
+(5, 'Rohan', 'rohan@gmail.com');
+
+SELECT USERS_NAME,EMAIL,COUNT(*) 
+FROM USERS
+GROUP BY USERS_NAME,EMAIL
+HAVING COUNT(*)>1;
+
+WITH DUPLICATE_RECORD AS
+(
+SELECT * ,ROW_NUMBER() OVER(PARTITION BY USERS_NAME,EMAIL ORDER BY USERS_ID ASC) AS RN 
+FROM USERS
+)
+SELECT * FROM DUPLICATE_RECORD WHERE RN=2;
+
+DELETE FROM USERS
+WHERE USERS_NAME IN
+(
+SELECT USERS_NAME
+FROM USERS
+GROUP BY USERS_NAME,EMAIL
+HAVING COUNT(*)>1
+);
+
+WITH DUPLICATE_RECORD AS
+(
+SELECT ROW_NUMBER() OVER(PARTITION BY USERS_NAME,EMAIL ORDER BY USERS_ID ASC) AS RN 
+FROM USERS
+)
+DELETE FROM DUPLICATE_RECORD WHERE RN=2; --DELETE AND UPDATE WILL NOT WORK WITH CTE IN SNOWFLAKE
+
+Create Temp table finaltable AS
+select * from USERS
+qualify row_number() over(partition by USERS_NAME,EMAIL order by USERS_NAME ASC)=1;
+
+SELECT * FROM FINALTABLE;
+
+--Q.NO:5
+--Write a query to find employees and thier managers
+
+CREATE TABLE employees3 (
+    employee_id INT PRIMARY KEY,
+    first_name VARCHAR(50),
+    manager_id INT
+);
+
+INSERT INTO employees3 (employee_id, first_name, manager_id) VALUES
+(1, 'John', NULL),
+(2, 'Jane', 1),
+(3, 'Doe', 1),
+(4, 'Smith', 2),
+(5, 'Emily', 2);
+
+SELECT A.EMPLOYEE_ID,A.FIRST_NAME,B.FIRST_NAME AS MANAGER
+FROM EMPLOYEES3 A LEFT JOIN EMPLOYEES3 B 
+ON A.EMPLOYEE_ID=B.EMPLOYEE_ID;
+
+
+--Q.NO:6
+--Write a query to find percentage of gender?
+
+-- Create the table
+CREATE OR REPLACE TABLE Employees4 (
+    EmployeeID INT PRIMARY KEY,
+    Name VARCHAR(100),
+    Gender VARCHAR(10)
+);
+
+-- Insert sample data
+INSERT INTO Employees4 (EmployeeID, Name, Gender) VALUES (1, 'Alice', 'Male');
+INSERT INTO Employees4 (EmployeeID, Name, Gender) VALUES (2, 'Bob', 'Male');
+INSERT INTO Employees4 (EmployeeID, Name, Gender) VALUES (3, 'Charlie', 'Male');
+INSERT INTO Employees4 (EmployeeID, Name, Gender) VALUES (4, 'Diana', 'Female');
+INSERT INTO Employees4 (EmployeeID, Name, Gender) VALUES (5, 'Eve', 'Female');
+INSERT INTO Employees4 (EmployeeID, Name, Gender) VALUES (6, 'Frank', 'Male');
+
+SELECT * FROM EMPLOYEES4;
+
+SELECT GENDER,ROUND(COUNT(GENDER)/(SELECT COUNT(*) FROM EMPLOYEES4)*100,2) AS G_PERCENT
+FROM EMPLOYEES4
+GROUP BY GENDER;
+
+--Q.NO:7
+--Write a query to find the salary contribution of each employee salary in department
+
+CREATE TABLE employees5 (
+    employee_id INT PRIMARY KEY,
+    name VARCHAR(50),
+    department_id INT,
+    salary DECIMAL(10,2)
+);
+
+-- Insert sample data
+INSERT INTO employees5 (employee_id, name, department_id, salary) VALUES (1, 'Alice', 101, 50000);
+INSERT INTO employees5 (employee_id, name, department_id, salary) VALUES (2, 'Bob', 101, 70000);
+INSERT INTO employees5 (employee_id, name, department_id, salary) VALUES (3, 'Charlie', 102, 60000);
+INSERT INTO employees5 (employee_id, name, department_id, salary) VALUES (4, 'Diana', 102, 80000);
+INSERT INTO employees5 (employee_id, name, department_id, salary) VALUES (5, 'Eve', 103, 55000);
+INSERT INTO employees5 (employee_id, name, department_id, salary) VALUES (6, 'Frank', 103, 75000);
+
+SELECT *,ROUND((SALARY)*100/SUM(SALARY) OVER(PARTITION BY DEPARTMENT_ID),2) AS SAL_PERCENT
+FROM EMPLOYEES5;
+
+--Q.NO:8
+-- Write a query to find the missing order in the data
+
+CREATE TABLE orders (
+    order_id INT PRIMARY KEY,
+    order_date DATE
+);
+
+-- Insert sample data
+INSERT INTO orders (order_id, order_date) VALUES (1, '2023-01-01');
+INSERT INTO orders (order_id, order_date) VALUES (2, '2023-01-03');
+INSERT INTO orders (order_id, order_date) VALUES (4, '2023-01-07');
+INSERT INTO orders (order_id, order_date) VALUES (5, '2023-01-09');
+
+SELECT * FROM ORDERS;
+
+SELECT ORDER_ID,(ORDER_ID+1) AS MISSING,
+LEAD(ORDER_ID) OVER(ORDER BY ORDER_ID) DAS NEXT_ID
+FROM ORDERS
+QUALIFY LEAD(ORDER_ID) OVER(ORDER BY ORDER_ID)-ORDER_ID>1;
+
+--Q.NO:9
+--Write a query to replace the NULL with default value using coalesce
+
+-- Create the departments table
+CREATE TABLE departments (
+    department_id INT PRIMARY KEY,
+    department_name VARCHAR(50)
+);
+
+-- Insert values into the departments table
+INSERT INTO departments (department_id, department_name) VALUES
+(101, 'HR'),
+(102, 'Finance'),
+(103, 'IT');
+
+-- Create the employees table
+CREATE TABLE employees6 (
+    employee_id INT PRIMARY KEY,
+    name VARCHAR(50),
+    department_id INT
+);
+
+-- Insert values into the employees table
+INSERT INTO employees6 (employee_id, name, department_id) VALUES
+(1, 'Alice', 101),
+(2, 'Bob', NULL),
+(3, 'Charlie', 102),
+(4, 'David', NULL);
+
+--CCOALESCE/NVL CAN BE USED
+
+SELECT E.EMPLOYEE_ID,E.NAME,NVL(D.DEPARTMENT_NAME,'Not Assigned') AS DEPT_NAME
+,COALESCE(D.DEPARTMENT_NAME,'Not Assigned')
+AS DEPT_NAME FROM EMPLOYEES6 E 
+LEFT JOIN DEPARTMENTS D 
+ON E.DEPARTMENT_ID=D.DEPARTMENT_ID;
+
+--Q.NO:10
+--Write a query to generate pivot table?
+
+-- Create the employees table
+CREATE TABLE employees7 (
+    department_id INT,
+    name VARCHAR(50),
+    employee_id INT,
+    location VARCHAR(2)
+);
+
+-- Insert values into the employees table
+INSERT INTO employees7 (department_id, name, employee_id, location) VALUES
+(101, 'Alice', 1, 'NY'),
+(102, 'Bob', 2, 'SF'),
+(101, 'Eve', 3, 'NY');
+
+-- Insert additional values into the employees table
+INSERT INTO employees7 (department_id, name, employee_id, location) VALUES
+(103, 'Charlie', 4, 'LA'),
+(104, 'David', 5, 'NY'),
+(102, 'Frank', 6, 'SF'),
+(101, 'Grace', 7, 'NY'),
+(103, 'Hannah', 8, 'LA'),
+(104, 'Ivy', 9, 'NY');
+
+
+SELECT * FROM(
+SELECT DEPARTMENT_ID,EMPLOYEE_ID,LOCATION
+FROM EMPLOYEES7) AS SOURCE_TAB
+PIVOT(COUNT(EMPLOYEE_ID)  
+FOR LOCATION IN ('NY','LA','SF')
+);
+
+--Q.NO:11
+--Write a query to categorise the salary class
+-- Create the employees table
+CREATE TABLE employees8 (
+    employee_id INT PRIMARY KEY,
+    name VARCHAR(50),
+    department_id INT,
+    salary DECIMAL(10,2)
+);
+
+-- Insert values into the employees table
+INSERT INTO employees8 (employee_id, name, department_id, salary) VALUES
+(1, 'Alice', 101, 50000),
+(2, 'Bob', 102, 70000),
+(3, 'Eve', 101, 100000),
+(4, 'John', 103, 60000),
+(5, 'Jane', 104, 80000),
+(6, 'Doe', 103, 120000),
+(7, 'Smith', 102, 55000),
+(8, 'Emily', 101, 75000),
+(9, 'Michael', 104, 95000),
+(10, 'Sarah', 103, 65000);
+
+
+SELECT EMPLOYEE_ID,NAME, SALARY,
+CASE 
+WHEN SALARY<60000 THEN 'LOW'
+WHEN SALARY>60000 AND SALARY<=80000 THEN 'MEDIUM'
+WHEN SALARY>80000 AND SALARY<=100000 THEN 'HIGH'
+ELSE 'VERY HIGH'
+END AS CATEGORY
+FROM EMPLOYEES8;
+
+
+--Q.NO:12
+--Write a query to make the rows into four equal parts using ntile()
+
+CREATE TABLE employees9 (
+    employee_id INT PRIMARY KEY,
+    first_name VARCHAR(50),
+    last_name VARCHAR(50),
+    hire_date DATE
+);
+
+INSERT INTO employees9 (employee_id, first_name, last_name, hire_date) VALUES
+(1, 'Alice', 'Smith', '2010-01-15'),
+(2, 'Bob', 'Johnson', '2011-03-22'),
+(3, 'Charlie', 'Williams', '2012-07-30'),
+(4, 'Diana', 'Brown', '2013-11-05'),
+(5, 'Ethan', 'Jones', '2014-02-18'),
+(6, 'Fiona', 'Garcia', '2015-06-12'),
+(7, 'George', 'Martinez', '2016-09-25'),
+(8, 'Hannah', 'Davis', '2017-12-01');
+
+SELECT *,NTILE(4) OVER(ORDER BY HIRE_DATE) AS HIRE_GROUP
+FROM EMPLOYEES9;
+
+
+--Q.NO:13
+--Write a query to find the whether the given character is in string
+
+CREATE TABLE Worker (
+    worker_id INT PRIMARY KEY,
+    first_name VARCHAR(50),
+    last_name VARCHAR(50),
+    department VARCHAR(50)
+);
+
+INSERT INTO Worker (worker_id, first_name, last_name, department) VALUES
+(1, 'Amitabh', 'Bachchan', 'Acting'),
+(2, 'John', 'Doe', 'Engineering'),
+(3, 'Jane', 'Smith', 'Marketing');
+
+SELECT REGEXP_INSTR(FIRST_NAME,'b') FROM WORKER;
+
+--Gives index(start=1) of that character if present else 0
+
+--Q.NO:14
+--Write a query to find the customers who have not done transactions last sixmonth
+
+CREATE or replace TABLE customers (
+    customer_id INT,
+    name VARCHAR(100)
+);
+
+CREATE or replace TABLE transactions (
+    transaction_id INT,
+    customer_id INT,
+    transaction_date DATE
+);
+
+-- Customers
+INSERT INTO customers (customer_id, name) VALUES
+(1, 'Alice'),
+(2, 'Bob'),
+(3, 'Charlie'),
+(4, 'Diana');
+
+-- Transactions
+INSERT INTO transactions (transaction_id, customer_id, transaction_date) VALUES
+(101, 1, '2024-10-10'),
+(102, 2, '2025-03-01'),
+(103, 1, '2025-04-15'),
+(104, 3, '2024-10-05');
+
+
+SELECT c.customer_id, c.name
+FROM customers c
+LEFT JOIN transactions t
+    ON c.customer_id = t.customer_id
+    AND t.transaction_date >= DATEADD(MONTH, -6, CURRENT_DATE())
+WHERE t.transaction_id IS NULL;
+
+--Q.NO:15
+--Write a query to find people who used more than 2 credit cards in a month
+
+CREATE OR REPLACE TABLE transactions2 (
+    customer_id INT,
+    card_id INT,
+    transaction_date DATE
+);
+
+
+INSERT INTO transactions2 (customer_id, card_id, transaction_date) VALUES
+(1, 101, '2025-01-05'),
+(1, 102, '2025-01-10'),
+(1, 103, '2025-01-15'),
+(1, 101, '2025-02-05'),
+(1, 102, '2025-02-10'),
+(2, 201, '2025-01-07'),
+(2, 202, '2025-01-08'),
+(3, 301, '2025-03-01'),
+(3, 302, '2025-03-02'),
+(3, 303, '2025-03-03'),
+(3, 304, '2025-03-04');
+
+SELECT CUSTOMER_ID,TO_CHAR(TRANSACTION_DATE,'YYYY-MM') AS TRANS_MONTH,
+COUNT(DISTINCT CARD_ID) AS NUM_OF_CARDS 
+FROM TRANSACTIONS2
+GROUP BY CUSTOMER_ID,TO_CHAR(TRANSACTION_DATE,'YYYY-MM')
+HAVING COUNT(DISTINCT CARD_ID)>=2;
+
+--Q.NO:15
+--Write a query to find the persons who joined in last 30 days?
+
+CREATE TABLE Employees10 (
+    emp_id INT PRIMARY KEY,
+    name VARCHAR(100),
+    join_date DATE
+);
+
+INSERT INTO Employees10 (emp_id, name, join_date) VALUES
+(1, 'Alice', '2025-04-15'),
+(2, 'Bob', '2025-03-10'),
+(3, 'Charlie', '2025-05-05'),
+(4, 'Diana', '2025-02-28'),
+(5, 'Ethan', '2025-04-25'),
+(6, 'Fiona', '2025-01-12'),
+(7, 'George', '2025-05-10');
+
+
+SELECT EMP_ID,NAME,JOIN_DATE
+FROM EMPLOYEES10
+WHERE JOIN_DATE>=DATEADD(MONTH,-1,CURRENT_DATE);
+
+--Q.NO:16
+--Write a query to find the points table from match schedule table
+
+CREATE TABLE Matches (
+    team_1 VARCHAR(50),
+    team_2 VARCHAR(50),
+    winner VARCHAR(50)
+);
+
+INSERT INTO Matches VALUES ('Ind', 'Aus', 'Ind');
+INSERT INTO Matches VALUES ('SA', 'Eng', 'Eng');
+INSERT INTO Matches VALUES ('NZ', 'Aus', 'NZ');
+INSERT INTO Matches VALUES ('Ind', 'SA', 'Ind');
+INSERT INTO Matches VALUES ('Eng', 'NZ', 'NZ');
+INSERT INTO Matches VALUES ('SA', 'Aus', 'SA');
+INSERT INTO Matches VALUES ('Ind', 'NZ', 'NZ');
+INSERT INTO Matches VALUES ('Eng', 'Aus', 'Eng');
+INSERT INTO Matches VALUES ('SA', 'NZ', 'SA');
+INSERT INTO Matches VALUES ('Ind', 'Eng', 'Ind');
+
+
+SELECT  TEAM_NAME ,COUNT(1) AS NUM_OF_MATCHES ,SUM(WIN_FLAG) AS MATCHES_WON ,COUNT(1)-SUM(WIN_FLAG) AS NO_OF_LOST FROM
+(SELECT TEAM_1 AS TEAM_NAME,CASE WHEN WINNER=TEAM_1 THEN 1 ELSE 0 END AS WIN_FLAG
+FROM MATCHES
+UNION ALL
+SELECT TEAM_2 AS TEAM_NAME ,CASE WHEN WINNER=TEAM_2 THEN 1 ELSE 0 END AS WIN_FLAG
+FROM MATCHES)
+GROUP BY TEAM_NAME
+ORDER BY MATCHES_WON DESC;
+
+
+--Q.NO:16
+--Write a query to find new coustomers and repeated customers?
+
+CREATE  or replace Table customer_orders (
+    customer_id INT,
+    order_id INT,
+    order_date DATE,
+    order_amount DECIMAL(10,2)
+);
+
+
+INSERT INTO customer_orders (customer_id, order_id, order_date, order_amount) VALUES
+(100, 200, '2022-01-01', 2000.00),
+(101, 201, '2022-01-01', 3000.00),
+(102, 202, '2022-01-01', 4000.00),
+(100, 203, '2022-01-02', 2500.00),
+(103, 204, '2022-01-02', 1500.00),
+(104, 205, '2022-01-02', 3500.00),
+(100, 206, '2022-01-03', 4500.00),
+(103, 207, '2022-01-03', 5000.00),
+(105, 208, '2022-01-03', 3000.00),
+(106, 209, '2022-01-04', 2800.00);
+
+WITH FIRTS_VISIT AS (
+SELECT CUSTOMER_ID,MIN(ORDER_DATE) AS FIRST_VISITED
+FROM CUSTOMER_ORDERS
+GROUP BY CUSTOMER_ID
+)
+SELECT CO.ORDER_DATE,
+SUM(CASE WHEN CO.ORDER_DATE=FV.FIRST_VISITED THEN 1 ELSE 0 END ) AS NEW_VISITED,
+SUM(CASE WHEN CO.ORDER_DATE!=FV.FIRST_VISITED THEN 1 ELSE 0 END ) AS REPEATED
+FROM CUSTOMER_ORDERS CO JOIN FIRTS_VISIT FV ON CO.CUSTOMER_ID=FV.CUSTOMER_ID
+GROUP BY CO.ORDER_DATE;
+
+WITH ranked_orders AS (
+    SELECT 
+        customer_id,
+        order_id,
+        order_date,
+        ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY order_date, order_id) AS rn
+    FROM customer_orders
+)
+SELECT 
+    order_date,
+    SUM(CASE WHEN rn = 1 THEN 1 ELSE 0 END) AS new_visited,
+    SUM( CASE WHEN rn > 1 THEN 1 ELSE 0 END) AS repeated
+FROM RANKED_ORDERS
+GROUP BY order_date
+ORDER BY order_date;
+
+
+--Q.NO:16
+--Write a query to remove numeric data from the rows
+
+CREATE or replace TABLE cleaned_strings (
+id INT,
+original_value VARCHAR(100)
+);
+
+
+INSERT INTO cleaned_strings (id, original_value)
+VALUES
+(1, '234abc9'),
+(2, '3466bc');
+
+select trim( original_value,'0123456789') from cleaned_strings;
+
+select lpad('phani',7,'0');
+
+SELECT TRANSLATE('23ab45', '0123456789', '') AS trimmed_string FROM dual;
+
+--Q.NO:17
+--Write a query to group the rows of the customer
+
+CREATE OR REPLACE TABLE EmployeeResources (
+    name VARCHAR(10),
+    address VARCHAR(100),
+    email VARCHAR(100),
+    floor INT,
+    resources VARCHAR(50)
+);
+
+INSERT INTO EmployeeResources (name, address, email, floor, resources) VALUES
+('A', 'Bangalore', 'A1@gmail.com', 1, 'CPU'),
+('A', 'Bangalore', 'A2@gmail.com', 1, 'CPU'),
+('A', 'Bangalore', 'B1@gmail.com', 2, 'DESKTOP'),
+('B', 'Bangalore', 'B2@gmail.com', 2, 'DESKTOP'),
+('B', 'Bangalore', 'B3@gmail.com', 1, 'MONITOR'),
+('B', 'Bangalore', 'B3@gmail.com', 2, 'MOUSE');
+
+WITH DISTINCT_RESOURCES AS
+(
+SELECT DISTINCT NAME,RESOURCES FROM EMPLOYEERESOURCES
+),
+AGG_RESOURCES AS
+(
+SELECT NAME,LISTAGG(RESOURCES,',') AS USED_RESOURCES
+FROM DISTINCT_RESOURCES
+GROUP BY NAME
+),
+TOTAL_VISIT AS
+(
+SELECT NAME,COUNT(NAME) AS TOT_VISITS FROM EMPLOYEERESOURCES
+GROUP BY NAME
+),
+MOST_VISITED AS
+(
+SELECT NAME,FLOOR,COUNT(NAME) AS NO_OF_VISITS,RANK() OVER(PARTITION BY NAME ORDER BY COUNT(NAME) DESC) AS RNK
+FROM EMPLOYEERESOURCES
+GROUP BY NAME,FLOOR
+)
+SELECT FV.NAME,FV.FLOOR,TV.TOT_VISITS,AR.USED_RESOURCES FROM 
+MOST_VISITED FV JOIN TOTAL_VISIT TV ON FV.NAME=TV.NAME JOIN
+AGG_RESOURCES AR ON AR.NAME=FV.NAME
+WHERE RNK=1;
+
+
+--Q.NO:18
+--Write a query to find who have freinds with total score of greater than 100
+
+CREATE or replace TABLE Results (
+    PersonID INT,
+    Name VARCHAR(50),
+    Email VARCHAR(100),
+    Score INT
+);
+
+CREATE or replace TABLE Messages (
+    PersonID INT,
+    FriendID INT
+);
+
+
+-- Insert into Results
+INSERT INTO Results (PersonID, Name, Email, Score) VALUES 
+(1, 'Alice', 'alice2018@hotmail.com', 88),
+(2, 'Bob', 'bob2018@hotmail.com', 11),
+(3, 'Davis', 'davis2018@hotmail.com', 27),
+(4, 'Tara', 'tara2018@hotmail.com', 45),
+(5, 'John', 'john2018@hotmail.com', 63);
+
+-- Insert into Messages
+INSERT INTO Messages (PersonID, FriendID) VALUES 
+(1, 2),
+(1, 3),
+(2, 1),
+(2, 3),
+(3, 5),
+(4,2),
+(4,3),
+(4,5);
+
+WITH CTE AS
+(
+SELECT R.PERSONID,SUM(P.SCORE) AS TOTAL,COUNT(1) AS NUMBER_OF_FRNDS 
+FROM RESULTS P JOIN MESSAGES R ON P.PERSONID=R.FRIENDID
+GROUP BY R.PERSONID
+HAVING SUM(P.SCORE)>100
+)
+SELECT C.*,P.NAME
+FROM RESULTS P JOIN CTE C ON P.PERSONID=C.PERSONID;
+
+
+--Q.NO:19
+--Write a query to find the cancellation rate on that day by unbanned users
+
+CREATE TABLE Trips (
+    id INT,
+    client_id INT,
+    driver_id INT,
+    city_id INT,
+    status VARCHAR(50),
+    request_at DATE
+);
+
+INSERT INTO Trips (id, client_id, driver_id, city_id, status, request_at) VALUES 
+(1, 1, 10, 1, 'completed', '2013-10-01'),
+(2, 2, 11, 1, 'canceled_by_driver', '2013-10-01'),
+(3, 3, 12, 1, 'canceled_by_client', '2013-10-01'),
+(4, 4, 13, 1, 'completed', '2013-10-01'),
+(5, 5, 14, 2, 'completed', '2013-10-02'),
+(6, 6, 15, 2, 'canceled_by_driver', '2013-10-02'),
+(7, 7, 16, 2, 'completed', '2013-10-03'),
+(8, 8, 17, 2, 'canceled_by_client', '2013-10-03');
+
+CREATE TABLE Users1 (
+    id INT,
+    banned VARCHAR(5),
+    role VARCHAR(10) -- 'client' or 'driver'
+);
+
+INSERT INTO Users1 (id, banned, role) VALUES 
+(1, 'No', 'client'),
+(2, 'No', 'client'),
+(3, 'No', 'client'),
+(4, 'Yes', 'client'),
+(5, 'No', 'client'),
+(6, 'No', 'client'),
+(7, 'No', 'client'),
+(8, 'No', 'client'),
+(10, 'No', 'driver'),
+(11, 'Yes', 'driver'),
+(12, 'No', 'driver'),
+(13, 'No', 'driver'),
+(14, 'No', 'driver'),
+(15, 'No', 'driver'),
+(16, 'No', 'driver'),
+(17, 'No', 'driver');
+
+
+SELECT REQUEST_AT,COUNT(CASE WHEN STATUS IN ('canceled_by_driver','canceled_by_client') THEN 1 ELSE NULL END) AS CANCELLED
+,COUNT(1) AS TOTAL_TRIPS,ROUND((COUNT(CASE WHEN STATUS IN ('canceled_by_driver','canceled_by_client') THEN 1 ELSE NULL END)/COUNT(1))*100,2) AS CANCEL_RATE  FROM TRIPS T INNER JOIN USERS1 U 
+ON T.CLIENT_ID=U.ID 
+INNER JOIN USERS1 D ON T.DRIVER_ID=D.ID
+WHERE U.BANNED='No' AND D.BANNED='No'
+GROUP BY T.REQUEST_AT;
+
+
+--Q.NO:20
+--Write a query to find winner who scored more if score equal the person with lowest id value will win
+
+CREATE or replace TABLE players (
+    player_id INT,
+    group_id INT
+);
+
+INSERT INTO PLAYERS(PLAYER_ID,GROUP_ID)
+VALUES (15,1),(25,1),(35,1),(45,1),(10,2),(35,2),(50,2),(20,3),(40,3);
+
+CREATE OR REPLACE TABLE SCORES 
+(MATCH_ID INT,
+FIRST_PLAYER INT,
+SECOND_PLAYER INT,
+FIRST_SCORE INT,
+SECOND_SCORE INT);
+
+INSERT INTO SCORES(MATCH_ID,FIRST_PLAYER,SECOND_PLAYER,FIRST_SCORE,SECOND_SCORE)
+VALUES(1,15,45,3,0),(2,30,25,1,2),(3,30,15,2,0),(4,40,20,5,2),(5,35,50,1,1);
+
+
+WITH PLAYER_SCORES
+AS(
+SELECT FIRST_PLAYER AS PLAYER_ID,FIRST_SCORE AS SCORE FROM SCORES
+UNION ALL
+SELECT SECOND_PLAYER AS PLAYER_ID,SECOND_SCORE AS SCORE FROM SCORES)
+,FINAL_SCORES AS
+(
+SELECT P.GROUP_ID,PS.PLAYER_ID,SUM(SCORE) AS SCORE FROM PLAYER_SCORES PS INNER JOIN PLAYERS P
+ON PS.PLAYER_ID=P.PLAYER_ID
+GROUP BY P.GROUP_ID,PS.PLAYER_ID
+),
+FINAL_RANKING AS
+(
+SELECT *,RANK() OVER (PARTITION BY GROUP_ID ORDER BY SCORE DESC,PLAYER_ID) AS RNK
+FROM FINAL_SCORES
+)
+SELECT * FROM FINAL_RANKING
+WHERE RNK=1;
+
+
+
+
+
+
+
+
+
