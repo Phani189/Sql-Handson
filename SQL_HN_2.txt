@@ -1,0 +1,676 @@
+CREATE OR REPLACE DATABASE SQL_HN_2;
+
+CREATE OR REPLACE SCHEMA SQL_HN_SCH_2;
+
+--Q.NO:1
+--Write an sql to find the students who scored same marks in both physics and chemistry
+
+CREATE OR REPLACE TABLE exams (
+    student_id INT,
+    subject VARCHAR(50),
+    marks INT
+);
+
+INSERT INTO exams (student_id, subject, marks) VALUES 
+(1, 'Chemistry', 81),
+(1, 'Physics', 81),
+(2, 'Chemistry', 79),
+(2, 'Physics', 80),
+(3, 'Chemistry', 74),
+(3, 'Physics', 74),
+(4, 'Physics', 64),
+(4, 'Physics', 84);
+
+SELECT STUDENT_ID 
+FROM EXAMS
+WHERE SUBJECT IN ('Physics','Chemistry')
+GROUP BY STUDENT_ID
+HAVING COUNT(DISTINCT SUBJECT)=2 AND COUNT(DISTINCT MARKS)=1;
+
+
+--Q.NO:2
+--Write an sql query to find where cases are increasing
+
+CREATE OR REPLACE TABLE covid (
+    city VARCHAR(50),
+    day DATE,
+    cases INT
+);
+
+
+INSERT INTO covid (city, day, cases) VALUES 
+('DELHI', '2022-01-01', 100),
+('DELHI', '2022-02-01', 200),
+('DELHI', '2022-03-01', 300),
+('MUMBAI', '2022-01-02', 150),
+('MUMBAI', '2022-02-02', 250),
+('MUMBAI', '2022-03-02', 350),
+('BANGALORE', '2022-01-04', 200),
+('BANGALORE', '2022-02-04', 300),
+('BANGALORE', '2022-03-04', 200);
+
+WITH RANKERS AS
+(
+SELECT *,RANK()
+OVER(PARTITION BY CITY ORDER BY DAY ASC) AS DAY_RANK,RANK()
+OVER(PARTITION BY CITY ORDER BY CASES ASC) AS CASE_RANK,
+(RANK()
+OVER(PARTITION BY CITY ORDER BY DAY ASC)-RANK() OVER(PARTITION BY CITY ORDER BY CASES ASC)) AS DIFF
+FROM COVID
+ORDER BY CITY,DAY
+)
+SELECT CITY 
+FROM RANKERS
+GROUP BY CITY
+HAVING COUNT(DISTINCT DIFF)=1 AND AVG(DIFF)=0;
+
+
+--Q.NO:3
+--Write an SQL query to find company having 2 users , who speak  both  engliesh and german?
+
+CREATE TABLE company_users (
+    company_id INT,
+    user_id INT,
+    language VARCHAR(50)
+);
+
+
+INSERT INTO company_users (company_id, user_id, language) VALUES
+(1, 1, 'German'),
+(1, 1, 'English'),
+(1, 2, 'English'),
+(1, 3, 'German'),
+(1, 3, 'English'),
+(1, 4, 'English'),
+(2, 5, 'English'),
+(2, 5, 'German'),
+(2, 5, 'Spanish');
+
+WITH RESULT AS
+(
+SELECT COMPANY_ID,USER_ID,COUNT(COMPANY_ID)
+FROM COMPANY_USERS
+WHERE LANGUAGE IN ('German','English')
+GROUP BY COMPANY_ID,USER_ID
+HAVING COUNT(COMPANY_ID)=2
+)
+SELECT COMPANY_ID FROM RESULT
+GROUP BY COMPANY_ID
+HAVING COUNT(1)>=2;
+
+
+--Q.NO:4
+--Write an sql query to find the number of messages exchanges between each person per day
+
+CREATE TABLE messages (
+    sms_date DATE,
+    sender VARCHAR(50),
+    receiver VARCHAR(50),
+    sms_no INT
+);
+
+INSERT INTO messages (sms_date, sender, receiver, sms_no) VALUES 
+('2020-04-01', 'Avinash', 'Vibhor', 10),
+('2020-04-01', 'Vibhor', 'Avinash', 20),
+('2020-04-01', 'Pawan', 'Avinash', 30),
+('2020-04-01', 'Pawan', 'Vibhor', 5),
+('2020-04-01', 'Pawan', 'Deepak', 50);
+
+WITH MESS_INFO
+AS
+(
+SELECT SMS_DATE,
+CASE WHEN SENDER<RECEIVER THEN SENDER ELSE RECEIVER END AS P1,
+CASE WHEN SENDER>RECEIVER THEN SENDER ELSE RECEIVER END AS P2,
+SMS_NO
+FROM MESSAGES
+)
+SELECT SMS_DATE,P1,P2
+,SUM(SMS_NO) AS TOTAL
+FROM MESS_INFO
+GROUP BY SMS_DATE,P1,P2;
+
+
+--Q.NO:5
+--Write a query to find largest sales value for each salesperson display order details
+
+CREATE TABLE orders (
+    order_number INT,
+    order_date DATE,
+    cust_id INT,
+    salesperson_id INT,
+    amount DECIMAL(10, 2)
+);
+
+INSERT INTO orders (order_number, order_date, cust_id, salesperson_id, amount) VALUES
+(10, '1995-07-14', 9, 1, 460),
+(20, '1998-01-29', 4, 2, 2400),
+(30, '1998-01-29', 3, 7, 600),
+(40, '1998-02-03', 6, 7, 720),
+(50, '1998-02-03', 7, 2, 150),
+(60, '1998-01-30', 4, 8, 1800);
+
+SELECT OA.ORDER_NUMBER,OA.ORDER_DATE,OA.CUST_ID,OA.SALESPERSON_ID,
+OA.AMOUNT FROM ORDERS OA LEFT JOIN ORDERS OB
+ON OA.SALESPERSON_ID=OB.SALESPERSON_ID
+GROUP BY OA.ORDER_NUMBER,OA.ORDER_DATE,OA.CUST_ID,OA.SALESPERSON_ID,OA.AMOUNT
+HAVING OA.AMOUNT>=MAX(OB.AMOUNT);
+
+--Q.NO:6
+--Write an SQL queryt to find students who scored above avg marks in each subject
+
+CREATE OR REPLACE TABLE students (
+    studentid INT,
+    studentname VARCHAR(50),
+    subject VARCHAR(50),
+    marks INT,
+    testid INT,
+    testdate DATE
+);
+
+
+INSERT INTO students (studentId, studentname, subject, marks, testid, testdate) VALUES
+(1, 'John Deo', 'Subject2', 60, 1, '2022-01-02'),
+(2, 'Max Ruin', 'Subject3', 70, 3, '2022-01-03'),
+(2, 'Max Ruin', 'Subject1', 63, 1, '2022-01-02'),
+(3, 'Arnold', 'Subject2', 84, 1, '2022-01-02'),
+(3, 'Arnold', 'Subject1', 94, 1, '2022-01-02'),
+(4, 'Krish Star', 'Subject1', 71, 1, '2022-01-02'),
+(4, 'Krish Star', 'Subject2', 40, 1, '2022-01-02'),
+(2, 'Max Ruin', 'Subject2',61 , 2, '2022-01-02'),
+(5, 'John Mike', 'Subject1', 72, 1, '2022-01-02'),
+(5, 'John Mike', 'Subject3', 93, 2, '2022-01-02');
+
+WITH AVGM AS
+(
+SELECT SUBJECT,ROUND(AVG(MARKS),2) AS AVG_MARKS
+FROM STUDENTS
+GROUP BY SUBJECT
+)
+SELECT S.STUDENTID,S.STUDENTNAME,S.SUBJECT FROM 
+STUDENTS S INNER JOIN AVGM A 
+ON S.SUBJECT=A.SUBJECT
+WHERE S.MARKS>A.AVG_MARKS
+ORDER BY SUBJECT;
+
+--Q.NO:7
+--Write an sql query to find percentage of students who got above 90 marks in any subject .(Data can used from same above table)
+
+SELECT COUNT(
+DISTINCT CASE WHEN MARKS>90 THEN STUDENTID ELSE NULL END
+)/COUNT(DISTINCT STUDENTID)*100 AS PERCENT_OF_STUDENTS
+FROM STUDENTS;
+
+--Q.NO:8
+--Write an sql query to find the second highest marks for each subject
+
+
+WITH RANKING AS
+(
+SELECT SUBJECT,MARKS,RANK() 
+OVER(PARTITION BY SUBJECT ORDER BY MARKS DESC) AS RNK1,
+RANK() OVER(PARTITION BY SUBJECT ORDER BY MARKS ASC) AS RNK2
+FROM STUDENTS
+)
+SELECT SUBJECT,
+SUM(CASE WHEN RNK1=2 THEN MARKS ELSE 0 END) AS SECOND_HIGEST,
+SUM(CASE WHEN RNK2=2 THEN MARKS ELSE 0 END) AS SECOND_LOWEST
+FROM RANKING
+GROUP BY SUBJECT;
+
+--Q.NO:9
+--Write a query to find for each student and test identify if their makrs increased or decreased from previous test
+
+WITH MARKS_COMPARISION AS
+(
+SELECT *,LAG(MARKS,1) OVER(PARTITION BY STUDENTID ORDER BY TESTID,SUBJECT) AS PREV_MARKS
+FROM STUDENTS
+)
+
+SELECT *,
+CASE WHEN MARKS>PREV_MARKS THEN 'INC'
+WHEN MARKS<PREV_MARKS THEN 'DEC'
+ELSE NULL END AS STATUS
+FROM MARKS_COMPARISION;
+
+--Q.NO:10
+--Write a sql query to find login and logout timings from given table
+
+CREATE TABLE event_status (
+    event_time TIME,
+    status VARCHAR(3)
+);
+
+
+INSERT INTO event_status (event_time, status) VALUES ('10:01', 'on');
+INSERT INTO event_status (event_time, status) VALUES ('10:02', 'on');
+INSERT INTO event_status (event_time, status) VALUES ('10:03', 'off');
+INSERT INTO event_status (event_time, status) VALUES ('10:04', 'on');
+INSERT INTO event_status (event_time, status) VALUES ('10:05', 'off');
+INSERT INTO event_status (event_time, status) VALUES ('10:06', 'on');
+INSERT INTO event_status (event_time, status) VALUES ('10:07', 'off');
+INSERT INTO event_status (event_time, status) VALUES ('10:08', 'on');
+INSERT INTO event_status (event_time, status) VALUES ('10:09', 'off');
+
+
+WITH LAG_TIME AS
+(
+SELECT *,LAG(STATUS,1,STATUS) OVER(ORDER BY EVENT_TIME) AS PREV_STAT
+FROM EVENT_STATUS
+),
+MAKE_GROUP AS
+(
+SELECT *,SUM(CASE WHEN STATUS='on' AND PREV_STAT='off' THEN 1 ELSE 0 END) OVER(ORDER
+BY EVENT_TIME) AS GROUP_KEY
+FROM LAG_TIME
+)
+SELECT MIN(EVENT_TIME) AS LOGIN,MAX(EVENT_TIME) AS LOGOUT,COUNT(STATUS)-1
+FROM MAKE_GROUP
+GROUP BY GROUP_KEY;
+
+--Q.NO:11
+--Write a sql query to pivot the data with respect to thier city's,check the data below and write accordingly
+
+
+CREATE or replace TABLE People (
+    name VARCHAR(50),
+    city VARCHAR(50)
+);
+
+
+INSERT INTO People (name, city) VALUES ('Sachin', 'Mumbai');
+INSERT INTO People (name, city) VALUES ('Virat', 'Delhi');
+INSERT INTO People (name, city) VALUES ('Rahul', 'Bangalore');
+INSERT INTO People (name, city) VALUES ('Rohit', 'Mumbai');
+INSERT INTO People (name, city) VALUES ('Mayank', 'Bangalore');
+
+--SOL-1
+
+WITH RankedPeople AS (
+    SELECT name, city,
+           ROW_NUMBER() OVER (PARTITION BY city ORDER BY name) AS rn
+    FROM People
+)
+SELECT *
+FROM RankedPeople
+PIVOT (
+    max(name)
+    FOR city IN (
+        'Mumbai',
+        'Delhi',
+        'Bangalore'
+    )
+)
+ORDER BY rn;
+
+--SOL-2
+
+WITH RankedPeople AS (
+    SELECT name, city,
+           ROW_NUMBER() OVER (PARTITION BY city ORDER BY name) AS rn
+    FROM People
+)
+SELECT 
+MAX(CASE WHEN CITY='Bangalore' THEN NAME END) AS Bangalore,
+MAX(CASE WHEN CITY='Delhi' THEN NAME END) AS Delhi,
+MAX(CASE WHEN CITY='Mumbai' THEN NAME END) AS Mumbai
+FROM RANKEDPEOPLE
+GROUP BY RN;
+
+--Q.NO:12
+--Write a sql query to find median salary of each company (try to solve without using any inbuilt)
+
+CREATE TABLE employee (
+    emp_id INT,
+    company CHAR(1),
+    salary INT
+);
+
+INSERT INTO employee (emp_id, company, salary) VALUES (1, 'A', 2341);
+INSERT INTO employee (emp_id, company, salary) VALUES (2, 'A', 341);
+INSERT INTO employee (emp_id, company, salary) VALUES (3, 'A', 15314);
+INSERT INTO employee (emp_id, company, salary) VALUES (4, 'B', 413);
+INSERT INTO employee (emp_id, company, salary) VALUES (5, 'B', 513);
+INSERT INTO employee (emp_id, company, salary) VALUES (6, 'B', 115);
+INSERT INTO employee (emp_id, company, salary) VALUES (7, 'C', 1345);
+INSERT INTO employee (emp_id, company, salary) VALUES (8, 'C', 113);
+INSERT INTO employee (emp_id, company, salary) VALUES (9, 'D', 114);
+INSERT INTO employee (emp_id, company, salary) VALUES (10, 'D', 2245);
+INSERT INTO employee (emp_id, company, salary) VALUES (11, 'E', 2341);
+INSERT INTO employee (emp_id, company, salary) VALUES (12, 'E', 2652);
+INSERT INTO employee (emp_id, company, salary) VALUES (13, 'F', 2655);
+
+WITH ROW_CTE AS
+(
+SELECT *,
+ROW_NUMBER() OVER(PARTITION BY COMPANY ORDER BY SALARY) AS RN,
+COUNT(1) OVER(PARTITION BY COMPANY) AS TOT_COUNT
+FROM EMPLOYEE
+), FILTER_ROW AS
+(
+SELECT *,(TOT_COUNT*1.0)/2,((TOT_COUNT*1.0)/2)+1 FROM ROW_CTE
+WHERE RN BETWEEN (TOT_COUNT*1.0)/2 AND ((TOT_COUNT*1.0)/2)+1
+)
+SELECT COMPANY,AVG(SALARY) AS MEDIAN1
+FROM FILTER_ROW
+GROUP BY COMPANY
+ORDER BY COMPANY;
+
+--Q.NO13
+--Write an SQL query to find the 3rd highest salary from each department,
+--incase if there is no 3 rd highest return employee with lowest salary.
+
+CREATE TABLE EMPLOYEE2 (
+    emp_id INT PRIMARY KEY,
+    emp_name VARCHAR(50),
+    salary INT,
+    dep_id INT,
+    dep_name VARCHAR(50)
+);
+
+INSERT INTO EMPLOYEE2 (emp_id, emp_name, salary, dep_id, dep_name) VALUES
+(1, 'Ankit', 14300, 100, 'Analytics'),
+(2, 'Vikas', 12100, 100, 'Analytics'),
+(3, 'Rohit', 7260, 100, 'Analytics'),
+(4, 'Aagam', 15000, 200, 'IT'),
+(5, 'Mudit', 14000, 200, 'IT'),
+(6, 'Mohit', 12000, 200, 'IT'),
+(7, 'Sanjay', 14500, 200, 'IT'),
+(8, 'Ashish', 8000, 300, 'HR'),
+(9, 'Rakesh', 4000, 300, 'HR'),
+(10, 'Mukesh', 7000, 500, 'Ops'),
+(11, 'Akhil', 4000, 500, 'Ops');
+
+WITH SAL_RANKING AS
+(
+SELECT * ,
+DENSE_RANK() OVER(PARTITION BY DEP_ID ORDER BY SALARY DESC) AS RNK,
+COUNT(EMP_ID) OVER(PARTITION BY DEP_ID) AS CNT
+FROM EMPLOYEE2
+)
+SELECT * FROM SAL_RANKING 
+WHERE RNK=3 OR (CNT<3 AND RNK=CNT);
+
+--Q.NO:14
+--Write  a sql query to find to display which 3 or more consecutive rows
+--with amount of people more than 100(or equal to 100)
+
+CREATE TABLE Visits (
+    id INT PRIMARY KEY,
+    visit_date DATE,
+    no_of_people INT
+);
+
+INSERT INTO Visits (id, visit_date, no_of_people) VALUES
+(1, '2017-07-01', 90),
+(2, '2017-07-02', 109),
+(3, '2017-07-03', 145),
+(4, '2017-07-04', 99),
+(5, '2017-07-05', 146),
+(6, '2017-07-06', 199),
+(7, '2017-07-07', 107),
+(8, '2017-07-08', 188); 
+
+WITH FINAL_TABLE AS
+(
+SELECT *,
+ROW_NUMBER() OVER(ORDER BY VISIT_DATE) AS RN,
+(ID-ROW_NUMBER() OVER(ORDER BY VISIT_DATE)) AS GRP_KEY
+FROM VISITS
+WHERE NO_OF_PEOPLE>=100
+)
+SELECT id,visit_date,no_of_people 
+FROM FINAL_TABLE 
+WHERE GRP_KEY IN
+(
+SELECT GRP_KEY
+FROM FINAL_TABLE
+GROUP BY GRP_KEY
+HAVING COUNT(GRP_KEY)>=3
+);
+
+
+--Q.NO:15
+--Write a sql query to find yearwise count of newcities where udaan started their opertions
+
+CREATE TABLE Business (
+    business_date DATE,
+    city_id INT
+);
+
+INSERT INTO Business  (business_date,city_id) VALUES ('2020-01-03',3);
+INSERT INTO Business  (business_date,city_id) VALUES ('2020-01-10',7);
+INSERT INTO Business  (business_date,city_id) VALUES ('2020-01-17',19);
+INSERT INTO Business  (business_date,city_id) VALUES ('2021-01-24',2);
+INSERT INTO Business  (business_date,city_id) VALUES ('2021-01-31',19);
+INSERT INTO Business  (business_date,city_id) VALUES ('2021-08-05',3);
+INSERT INTO Business (business_date,city_id) VALUES ('2022-08-12',12);
+
+WITH YEAR_EXTRACT AS
+(
+SELECT YEAR(BUSINESS_DATE) AS BUS_YEAR,CITY_ID FROM
+BUSINESS
+)
+SELECT YE1.BUS_YEAR,COUNT(DISTINCT 
+CASE WHEN YE2.BUS_YEAR IS NULL THEN YE1.CITY_ID END) AS NEW_CITIES
+FROM YEAR_EXTRACT YE1
+LEFT JOIN YEAR_EXTRACT YE2 ON YE1.BUS_YEAR>YE2.BUS_YEAR 
+AND YE1.CITY_ID=YE2.CITY_ID
+GROUP BY YE1.BUS_YEAR
+;
+
+--Q.NO:16
+--Write a sql query four consecutive empty seats that belong to same number
+
+CREATE or replace TABLE seats (
+    seat VARCHAR(10),
+    occupancy INT
+);
+
+INSERT INTO seats (seat, occupancy) VALUES ('a1', 1);
+INSERT INTO seats (seat, occupancy) VALUES ('a2', 1);
+INSERT INTO seats (seat, occupancy) VALUES ('a3', 0);
+INSERT INTO seats (seat, occupancy) VALUES ('a4', 0);
+INSERT INTO seats (seat, occupancy) VALUES ('a5', 0);
+INSERT INTO seats (seat, occupancy) VALUES ('a6', 0);
+INSERT INTO seats (seat, occupancy) VALUES ('a7', 1);
+INSERT INTO seats (seat, occupancy) VALUES ('a8', 1);
+INSERT INTO seats (seat, occupancy) VALUES ('a9', 0);
+INSERT INTO seats (seat, occupancy) VALUES ('a10', 0);
+INSERT INTO seats (seat, occupancy) VALUES ('b1', 0);
+INSERT INTO seats (seat, occupancy) VALUES ('b2', 0);
+INSERT INTO seats (seat, occupancy) VALUES ('b3', 0);
+INSERT INTO seats (seat, occupancy) VALUES ('b4', 1);
+INSERT INTO seats (seat, occupancy) VALUES ('b5', 1);
+INSERT INTO seats (seat, occupancy) VALUES ('b6', 1);
+INSERT INTO seats (seat, occupancy) VALUES ('b7', 0);
+INSERT INTO seats (seat, occupancy) VALUES ('b8', 0);
+INSERT INTO seats (seat, occupancy) VALUES ('b9', 0);
+INSERT INTO seats (seat, occupancy) VALUES ('b10', 0);
+
+WITH SEATROW AS
+(
+SELECT *, LEFT(SEAT,1) AS ROW_ID,
+CAST(SUBSTR(SEAT,2,2) AS INT) AS SEAT_ID
+FROM SEATS
+),
+IS_4_CTE AS
+(
+SELECT *,
+MAX(OCCUPANCY) OVER(PARTITION BY ROW_ID ORDER BY SEAT_ID ROWS BETWEEN CURRENT ROW AND 3 FOLLOWING) AS IS_4_EMPTY,
+COUNT(OCCUPANCY) OVER(PARTITION BY ROW_ID ORDER BY SEAT_ID ROWS BETWEEN CURRENT ROW AND 3 FOLLOWING) AS CNT
+FROM SEATROW
+),
+FILTER_CTE AS
+(
+SELECT * FROM IS_4_CTE WHERE
+IS_4_EMPTY=0 AND CNT=4
+)
+SELECT C1.*
+FROM IS_4_CTE C1 JOIN FILTER_CTE C2
+ON C1.ROW_ID=C2.ROW_ID AND 
+C1.SEAT_ID BETWEEN C2.SEAT_ID AND C2.SEAT_ID+3;
+
+--Q.NO:17:
+--Write a sql query to find phone number that satify below conditions
+--1.Numbers that have both incoming and outgoin calls
+--2.the sum of duration of outgoing calls should be greater than incoming call duration sum
+
+CREATE or replace TABLE calls (
+    call_type VARCHAR(10),
+    call_number INT ,
+    call_duration INT
+);
+
+INSERT INTO calls (call_type, call_number, call_duration) VALUES 
+('OUT', 181808, 13),
+('OUT', 215100, 8),
+('INC', 215100, 18),
+('SMS', 4158100, 1),
+('SMS', 4158100, 52),
+('OUT', 181808, 13),
+('INC', 181808, 23),
+('OUT', 181808, 20),
+('SMS',215100, 1);
+
+WITH TOT_DURATION AS
+(
+SELECT CALL_NUMBER,
+SUM(CASE WHEN CALL_TYPE='OUT' THEN CALL_DURATION ELSE NULL END) AS OUT_DURATION,
+SUM(CASE WHEN CALL_TYPE='INC' THEN CALL_DURATION ELSE NULL END) AS IN_DURATION
+FROM CALLS
+GROUP BY CALL_NUMBER
+)
+SELECT CALL_NUMBER FROM TOT_DURATION
+WHERE OUT_DURATION IS NOT NULL AND IN_DURATION IS NOT NULL AND OUT_DURATION>IN_DURATION;
+
+--Q.NO:18
+--Write a sql query to find the student details who are being queit
+--(queit being student should attend atleast one exam and student neither scoring high nor low)
+
+CREATE or replace TABLE student (
+    student_id INT,
+    student_name VARCHAR(50)
+);
+
+CREATE or replace TABLE exam (
+    exam_id INT,
+    student_id INT,
+    score INT
+);
+
+INSERT INTO student (student_id, student_name) VALUES 
+(1, 'Daniel'),
+(2, 'Jade'),
+(3, 'Stella'),
+(4, 'Jonathan'),
+(5, 'Will');
+
+
+INSERT INTO exam (exam_id, student_id, score) VALUES 
+(10, 1, 70),
+(10, 2, 80),
+(10, 3, 90),
+(20, 1, 60),
+(20, 3, 50),
+(30, 1, 70),
+(30, 3, 80),
+(30, 4, 60),
+(40, 1, 60),
+(40, 2, 70),
+(40, 4, 80);
+
+
+WITH CTE AS
+(
+SELECT EXAM_ID,MIN(SCORE) AS MIN_SCORE,
+MAX(SCORE) AS MAX_SCORE
+FROM EXAM
+GROUP BY EXAM_ID
+)
+SELECT E.STUDENT_ID
+FROM CTE C JOIN EXAM E
+ON E.EXAM_ID=C.EXAM_ID
+GROUP BY E.STUDENT_ID
+HAVING MAX(CASE WHEN SCORE=C.MIN_SCORE OR SCORE=C.MAX_SCORE THEN 1 ELSE 0 END)=0;
+
+--Q.NO:19
+--Write a query to find whose first and last call was to the same person on that day
+
+CREATE or replace TABLE Calls1 (
+    Callerid INT,
+    Recipientid INT,
+    Datecalled DATETIME
+);
+
+INSERT INTO Calls1 (Callerid, Recipientid, Datecalled) VALUES (1, 2, '2019-01-01 09:30:00.000');
+INSERT INTO Calls1 (Callerid, Recipientid, Datecalled) VALUES (1, 3, '2019-01-01 17:00:00.000');
+INSERT INTO Calls1 (Callerid, Recipientid, Datecalled) VALUES (1, 5, '2019-07-05 09:00:00.000');
+INSERT INTO Calls1 (Callerid, Recipientid, Datecalled) VALUES (1, 5, '2019-07-05 17:30:00.000');
+INSERT INTO Calls1 (Callerid, Recipientid, Datecalled) VALUES (2, 3, '2019-07-05 17:20:00.000');
+INSERT INTO Calls1 (Callerid, Recipientid, Datecalled) VALUES (2, 4, '2019-08-02 09:30:00.000');
+INSERT INTO Calls1 (Callerid, Recipientid, Datecalled) VALUES (2, 4, '2019-08-02 10:30:00.000');
+INSERT INTO Calls1 (Callerid, Recipientid, Datecalled) VALUES (1, 3, '2019-08-02 11:30:00.000');
+
+WITH CAL_DETAILS AS
+(
+SELECT CALLERID,CAST(DATECALLED AS DATE),
+MIN(DATECALLED) AS FIRST_CALL,
+MAX(DATECALLED) AS LAST_CALL
+FROM CALLS1
+GROUP BY CALLERID,CAST(DATECALLED AS DATE)
+)
+SELECT C.*, E.RECIPIENTID
+FROM CAL_DETAILS C JOIN CALLS1 E
+ON (C.CALLERID=E.CALLERID AND C.FIRST_CALL=E.DATECALLED)
+JOIN CALLS1 F ON (C.CALLERID=F.CALLERID AND C.LAST_CALL=F.DATECALLED)
+WHERE E.RECIPIENTID=F.RECIPIENTID;
+
+--Q.NO:20
+--Company Budget: $70,000
+--Hiring Criteria:
+--Hire seniors with the smallest salary first, until no more seniors can be hired within the budget.
+--Use the remaining budget to hire juniors with the smallest salary first, until the budget is exhausted.
+--Write an SQL query to find the seniors and juniors hired under the above criteria.
+
+CREATE TABLE employees (
+    emp_id INT,
+    experience VARCHAR(10),
+    salary INT
+);
+
+INSERT INTO employees (emp_id, experience, salary) VALUES (1, 'Junior', 10000);
+INSERT INTO employees (emp_id, experience, salary) VALUES (2, 'Junior', 15000);
+INSERT INTO employees (emp_id, experience, salary) VALUES (3, 'Junior', 40000);
+INSERT INTO employees (emp_id, experience, salary) VALUES (4, 'Senior', 16000);
+INSERT INTO employees (emp_id, experience, salary) VALUES (5, 'Senior', 20000);
+INSERT INTO employees (emp_id, experience, salary) VALUES (6, 'Senior', 50000);
+
+WITH TOTAL_SAL 
+AS
+(
+SELECT *,SUM(salary) OVER(PARTITION BY EXPERIENCE ORDER BY salary ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running_sal 
+FROM EMPLOYEES
+),
+SENIORS AS
+(
+SELECT * FROM TOTAL_SAL
+WHERE EXPERIENCE='Senior' AND RUNNING_SAL<70000
+)
+SELECT * FROM SENIORS
+UNION ALL
+SELECT * FROM TOTAL_SAL
+WHERE EXPERIENCE='Junior' AND RUNNING_SAL<70000-(SELECT SUM(SALARY) FROM SENIORS);
+
+
+
+
+
+
+
+
+
+
+
+
+
