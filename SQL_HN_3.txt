@@ -1,0 +1,1113 @@
+CREATE OR REPLACE DATABASE SQL_HN_3;
+
+CREATE OR REPLACE SCHEMA SCHEMA_HN_3;
+
+--Q.NO:1
+--Write a sql query to find total rides and profit rides for each rider.
+--profit ride is when end location of current ride is same as start location of next ride.
+
+create table drivers
+(id varchar(10), 
+start_time time, 
+end_time time, 
+start_loc varchar(10), 
+end_loc varchar(10)
+);
+
+insert into drivers values
+('dri_1', '09:00', '09:30', 'a','b'),
+('dri_1', '09:30', '10:30', 'b','c'),
+('dri_1','11:00','11:30', 'd','e');
+insert into drivers values('dri_1', '12:00', '12:30', 'f','g'),
+('dri_1', '13:30', '14:30', 'c','h');
+insert into drivers values('dri_2', '12:15', '12:30', 'f','g'),
+('dri_2', '13:30', '14:30', 'c','h');
+
+SELECT ID,COUNT(ID) AS TOTAL_RIDES,
+SUM(CASE WHEN END_LOC=NEXT_START_LOCATION THEN 1 ELSE 0 END) AS PROFIT_RIDES
+FROM
+(
+SELECT *,LEAD(START_LOC) OVER(PARTITION BY ID ORDER BY START_TIME) AS NEXT_START_LOCATION
+FROM DRIVERS
+)A
+GROUP BY ID;
+
+WITH DRIVERSLIST AS
+(
+SELECT *,ROW_NUMBER() OVER(PARTITION BY ID ORDER BY START_TIME) AS RN
+FROM DRIVERS 
+)
+SELECT R1.ID,COUNT(R1.ID) AS TOTALRIDES,COUNT(R2.ID) AS PROFIT_RIDES FROM 
+DRIVERSLIST R1 LEFT JOIN DRIVERSLIST R2
+ON R1.ID=R2.ID AND R1.END_LOC=R2.START_LOC AND R1.RN+1=R2.RN
+GROUP BY R1.ID;
+
+--Q.NO:2
+--Write a sql query to find customers who bought different products on different dates
+--products purchased on any given date are not repeated on other date
+
+create or replace table purchase_history
+(userid int
+,productid int
+,purchasedate date
+);
+
+ALTER SESSION SET DATE_INPUT_FORMAT = 'DD-MM-YYYY';
+
+insert into purchase_history values
+(1,1,'23-01-2012')
+,(1,2,'23-01-2012')
+,(1,3,'25-01-2012')
+,(2,1,'23-01-2012')
+,(2,2,'23-01-2012')
+,(2,2,'25-01-2012')
+,(2,4,'25-01-2012')
+,(3,4,'23-01-2012')
+,(3,1,'23-01-2012')
+,(4,1,'23-01-2012')
+,(4,2,'25-01-2012');
+
+WITH FORMATED AS
+(
+SELECT USERID,COUNT(DISTINCT PURCHASEDATE) AS CNT_DATE,
+COUNT(PRODUCTID) AS TOT_CNT,COUNT(DISTINCT PRODUCTID) AS DIS_CNT
+FROM PURCHASE_HISTORY
+GROUP BY USERID
+)
+SELECT USERID FROM FORMATED
+WHERE CNT_DATE>=2 AND TOT_CNT=DIS_CNT;
+
+--Q.NO:3
+--Write a Sql query to find number of users that made additional in-app purchases due to success of campaign
+--the marketing campaign doesnot start until one day after initial in app purchases so users that are only made one or multiple purchases on first day dont count nor do we count users that over time purchase products only the products that purchase on first day
+
+CREATE TABLE marketing_campaign(
+user_id int,
+created_at date,
+product_id int,
+quantity int,
+price int
+);
+
+insert into marketing_campaign values (10,'2019-01-01',101,3,55),
+(10,'2019-01-02',119,5,29),
+(10,'2019-03-31',111,2,149),
+(11,'2019-01-02',105,3,234),
+(11,'2019-03-31',120,3,99),
+(12,'2019-01-02',112,2,200),
+(12,'2019-03-31',110,2,299),
+(13,'2019-01-05',113,1,67),
+(13,'2019-03-31',118,3,35),
+(14,'2019-01-06',109,5,199),
+(14,'2019-01-06',107,2,27),
+(14,'2019-03-31',112,3,200),
+(15,'2019-01-08',105,4,234),
+(15,'2019-01-09',110,4,299),
+(15,'2019-03-31',116,2,499),
+(16,'2019-01-10',113,2,67),
+(16,'2019-03-31',107,4,27),
+(17,'2019-01-11',116,2,499),
+(17,'2019-03-31',104,1,154),
+(18,'2019-01-12',114,2,248),
+(18,'2019-01-12',113,4,67),
+(19,'2019-01-12',114,3,248),
+(20,'2019-01-15',117,2,999),
+(21,'2019-01-16',105,3,234),
+(21,'2019-01-17',114,4,248),
+(22,'2019-01-18',113,3,67),
+(22,'2019-01-19',118,4,35),
+(23,'2019-01-20',119,3,29),
+(24,'2019-01-21',114,2,248),
+(25,'2019-01-22',114,2,248),
+(25,'2019-01-22',115,2,72),
+(25,'2019-01-24',114,5,248),
+(25,'2019-01-27',115,1,72),
+(26,'2019-01-25',115,1,72),
+(27,'2019-01-26',104,3,154),
+(28,'2019-01-27',101,4,55),
+(29,'2019-01-27',111,3,149),
+(30,'2019-01-29',111,1,149),
+(31,'2019-01-30',104,3,154),
+(32,'2019-01-31',117,1,999),
+(33,'2019-01-31',117,2,999),
+(34,'2019-01-31',110,3,299),
+(35,'2019-02-03',117,2,999),
+(36,'2019-02-04',102,4,82),
+(37,'2019-02-05',102,2,82),
+(38,'2019-02-06',113,2,67),
+(39,'2019-02-07',120,5,99),
+(40,'2019-02-08',115,2,72),
+(41,'2019-02-08',114,1,248),
+(42,'2019-02-10',105,5,234),
+(43,'2019-02-11',102,1,82),
+(43,'2019-03-05',104,3,154),
+(44,'2019-02-12',105,3,234),
+(44,'2019-03-05',102,4,82),
+(45,'2019-02-13',119,5,29),
+(45,'2019-03-05',105,3,234),
+(46,'2019-02-14',102,4,82),
+(46,'2019-02-14',102,5,29),
+(46,'2019-03-09',102,2,35),
+(46,'2019-03-10',103,1,199),
+(46,'2019-03-11',103,1,199),
+(47,'2019-02-14',110,2,299),
+(47,'2019-03-11',105,5,234),
+(48,'2019-02-14',115,4,72),
+(48,'2019-03-12',105,3,234),
+(49,'2019-02-18',106,2,123),
+(49,'2019-02-18',114,1,248),
+(49,'2019-02-18',112,4,200),
+(49,'2019-02-18',116,1,499),
+(50,'2019-02-20',118,4,35),
+(50,'2019-02-21',118,4,29),
+(50,'2019-03-13',118,5,299),
+(50,'2019-03-14',118,2,199),
+(51,'2019-02-21',120,2,99),
+(51,'2019-03-13',108,4,120),
+(52,'2019-02-23',117,2,999),
+(52,'2019-03-18',112,5,200),
+(53,'2019-02-24',120,4,99),
+(53,'2019-03-19',105,5,234),
+(54,'2019-02-25',119,4,29),
+(54,'2019-03-20',110,1,299),
+(55,'2019-02-26',117,2,999),
+(55,'2019-03-20',117,5,999),
+(56,'2019-02-27',115,2,72),
+(56,'2019-03-20',116,2,499),
+(57,'2019-02-28',105,4,234),
+(57,'2019-02-28',106,1,123),
+(57,'2019-03-20',108,1,120),
+(57,'2019-03-20',103,1,79),
+(58,'2019-02-28',104,1,154),
+(58,'2019-03-01',101,3,55),
+(58,'2019-03-02',119,2,29),
+(58,'2019-03-25',102,2,82),
+(59,'2019-03-04',117,4,999),
+(60,'2019-03-05',114,3,248),
+(61,'2019-03-26',120,2,99),
+(62,'2019-03-27',106,1,123),
+(63,'2019-03-27',120,5,99),
+(64,'2019-03-27',105,3,234),
+(65,'2019-03-27',103,4,79),
+(66,'2019-03-31',107,2,27),
+(67,'2019-03-31',102,5,82);
+
+WITH RNKS AS
+(
+SELECT *,RANK()OVER(PARTITION BY USER_ID ORDER BY CREATED_AT) AS RNK
+FROM marketing_campaign
+)
+,
+FIRST_PURCHASE AS
+(
+SELECT * FROM RNKS
+WHERE RNK=1
+),
+EXCEPT_FIRST_PURCHASE AS
+(
+SELECT * FROM RNKS WHERE RNK>1
+)
+SELECT EFP.USER_ID
+FROM EXCEPT_FIRST_PURCHASE EFP LEFT JOIN FIRST_PURCHASE FP
+ON EFP.USER_ID=FP.USER_ID AND EFP.PRODUCT_ID=FP.PRODUCT_ID
+WHERE FP.PRODUCT_ID IS NULL;
+
+--Q.NO:4
+--Write a sql query to find all couples of trade for same stock that happened in range of 10 seceonds and having price difference more than 10%
+--output should also list the percentage of prices difference between 2 tardes.
+
+Create Table Trade_tbl(
+TRADE_ID varchar(20),
+Trade_Timestamp time,
+Trade_Stock varchar(20),
+Quantity int,
+Price Float
+);
+
+Insert into Trade_tbl Values('TRADE1','10:01:05','ITJunction4All',100,20);
+Insert into Trade_tbl Values('TRADE2','10:01:06','ITJunction4All',20,15);
+Insert into Trade_tbl Values('TRADE3','10:01:08','ITJunction4All',150,30);
+Insert into Trade_tbl Values('TRADE4','10:01:09','ITJunction4All',300,32);
+Insert into Trade_tbl Values('TRADE5','10:10:00','ITJunction4All',-100,19);
+Insert into Trade_tbl Values('TRADE6','10:10:01','ITJunction4All',-300,19);
+Insert into Trade_tbl Values('TRADE1','10:01:05','Infosys',100,20);
+Insert into Trade_tbl Values('TRADE2','10:01:06','Infosys',20,15);
+
+SELECT T1.TRADE_ID,T2.TRADE_ID,T1.TRADE_STOCK,T1.TRADE_TIMESTAMP,T1.PRICE,ABS((T1.PRICE-T2.PRICE)*1.0/T1.PRICE)*100 FROM
+Trade_tbl T1 INNER JOIN TRADE_TBL T2
+ON T1.TRADE_STOCK=T2.TRADE_STOCK
+WHERE T1.TRADE_TIMESTAMP<T2.TRADE_TIMESTAMP AND 
+DATEDIFF(SECOND,T1.TRADE_TIMESTAMP,T2.TRADE_TIMESTAMP)<10
+AND ABS((T1.PRICE-T2.PRICE)*1.0/T1.PRICE)*100>10
+ORDER BY T1.TRADE_ID;
+
+--Q.NO:5
+--Write a sql query to find 
+--we have a table which stores data of multiple sections. every section has 3 numbers
+--we have to find top 4 numbers from any 2 sections(2 numbers each) whose addition should be maximum
+--so in this case we will choose section b where we have 19(10+9) then we need to choose either C or D
+--because both has sum of 18 but in D we have 10 which is big from 9 so we will give priority to D
+
+create table section_data
+(
+section varchar(5),
+number1 integer
+);
+
+insert into section_data
+values ('A',5),('A',7),('A',10) ,('B',7),('B',9),('B',10) 
+,('C',9),('C',7),('C',9) ,('D',10),('D',3),('D',8);
+
+WITH CTE AS
+(
+SELECT *, ROW_NUMBER() OVER(PARTITION BY SECTION ORDER BY NUMBER1 DESC) AS RNK
+FROM SECTION_DATA
+),
+CTE2
+AS
+(
+SELECT * FROM CTE WHERE RNK<=2
+),
+CTE3 AS
+(
+SELECT *,SUM(NUMBER1) OVER(PARTITION BY SECTION) AS TOTAL,
+MAX(NUMBER1) OVER(PARTITION BY SECTION) AS MAXI
+FROM CTE2
+),
+CTE4 AS
+(
+SELECT *,DENSE_RANK()OVER (ORDER BY TOTAL DESC,MAXI DESC) AS FINAL_RANK
+FROM CTE3
+)
+SELECT * FROM CTE4
+WHERE FINAL_RANK<=2;
+
+
+--Q.NO:6
+--Write a sql query to find the overlapping events in same hall(merge)
+
+create table hall_events
+(
+hall_id integer,
+start_date date,
+end_date date
+);
+
+insert into hall_events values 
+(1,'2023-01-13','2023-01-14')
+,(1,'2023-01-14','2023-01-17')
+,(1,'2023-01-15','2023-01-17')
+,(1,'2023-01-18','2023-01-25')
+,(2,'2022-12-09','2022-12-23')
+,(2,'2022-12-13','2022-12-17')
+,(3,'2022-12-01','2023-01-30');
+insert into hall_events values 
+(1,'2023-01-12','2023-01-14')
+,(2,'2023-01-10','2023-01-17');
+
+WITH CTE AS
+(
+SELECT *,ROW_NUMBER() OVER (ORDER BY HALL_ID,START_DATE) AS EVENT_ID
+FROM HALL_EVENTS
+),
+R_CTE AS
+(
+SELECT HALL_ID,START_DATE,END_DATE,EVENT_ID,1 AS FLAG FROM CTE WHERE EVENT_ID=1
+UNION ALL
+SELECT C.HALL_ID,C.START_DATE,C.END_DATE,C.EVENT_ID,CASE
+WHEN C.HALL_ID=R.HALL_ID AND ((C.START_DATE BETWEEN R.START_DATE AND R.END_DATE)
+OR (R.START_DATE BETWEEN C.START_DATE AND C.END_DATE)) THEN 0 ELSE 1 END + FLAG FROM CTE C INNER JOIN R_CTE R
+ON R.EVENT_ID+1=C.EVENT_ID
+)
+SELECT HALL_ID,MIN(START_DATE) AS START_DATE,MAX(END_DATE) AS END_DATE
+FROM R_CTE
+GROUP BY HALL_ID,FLAG;
+
+WITH CTE AS
+(
+SELECT *,LAG(END_DATE,1,START_DATE) OVER(PARTITION BY HALL_ID ORDER BY START_DATE) AS PREV_END_DATE,
+(CASE WHEN LAG(END_DATE,1,START_DATE) OVER(PARTITION BY HALL_ID ORDER BY START_DATE)>=START_DATE THEN 0 ELSE 1 END) AS FLAG
+FROM HALL_EVENTS
+)
+SELECT HALL_ID,MIN(START_DATE) AS START_DATE,MAX(END_DATE) AS END_DATE
+FROM CTE 
+GROUP BY HALL_ID,FLAG
+ORDER BY HALL_ID;
+
+--Q.NO:7
+--Write a sql query to find departments list whose avg of deparments greater than overall avg of the company
+--when comparing a avg sal of company with department u must exclude that company in average calculation
+
+create or replace table emp(
+emp_id int,
+emp_name varchar(20),
+department_id int,
+salary int,
+manager_id int,
+emp_age int);
+
+insert into emp
+values
+(1, 'Ankit', 100,10000, 4, 39);
+insert into emp
+values (2, 'Mohit', 100, 15000, 5, 48);
+insert into emp
+values (3, 'Vikas', 100, 10000,4,37);
+insert into emp
+values (4, 'Rohit', 100, 5000, 2, 16);
+insert into emp
+values (5, 'Mudit', 200, 12000, 6,55);
+insert into emp
+values (6, 'Agam', 200, 12000,2, 14);
+insert into emp
+values (7, 'Sanjay', 200, 9000, 2,13);
+insert into emp
+values (8, 'Ashish', 200,5000,2,12);
+insert into emp
+values (9, 'Mukesh',300,6000,6,51);
+insert into emp
+values (10, 'Rakesh',300,7000,6,50);
+
+WITH CTE AS
+(
+SELECT DEPARTMENT_ID ,COUNT(EMP_ID) AS TOT_EMP,
+SUM(SALARY) AS TOTAL_SAL,AVG(SALARY) AS AVG_SAL
+FROM EMP
+GROUP BY DEPARTMENT_ID
+)
+SELECT E1.DEPARTMENT_ID,E1.AVG_SAL,SUM(E2.TOTAL_SAL),SUM(E2.TOT_EMP),
+SUM(E2.TOTAL_SAL)/SUM(E2.TOT_EMP)
+FROM CTE E1 JOIN CTE E2
+ON E1.DEPARTMENT_ID!=E2.DEPARTMENT_ID
+GROUP BY E1.DEPARTMENT_ID,E1.AVG_SAL
+HAVING E1.AVG_SAL<SUM(E2.TOTAL_SAL)/SUM(E2.TOT_EMP);
+
+--Q.NO:8
+--Write a sql query to find segement wise total count and user who booked flight tick apr 2022.
+
+
+CREATE TABLE booking_table(
+   Booking_id       VARCHAR(3) NOT NULL 
+  ,Booking_date     date NOT NULL
+  ,User_id          VARCHAR(2) NOT NULL
+  ,Line_of_business VARCHAR(6) NOT NULL
+);
+
+INSERT INTO booking_table(Booking_id,Booking_date,User_id,Line_of_business) VALUES ('b1','2022-03-23','u1','Flight');
+INSERT INTO booking_table(Booking_id,Booking_date,User_id,Line_of_business) VALUES ('b2','2022-03-27','u2','Flight');
+INSERT INTO booking_table(Booking_id,Booking_date,User_id,Line_of_business) VALUES ('b3','2022-03-28','u1','Hotel');
+INSERT INTO booking_table(Booking_id,Booking_date,User_id,Line_of_business) VALUES ('b4','2022-03-31','u4','Flight');
+INSERT INTO booking_table(Booking_id,Booking_date,User_id,Line_of_business) VALUES ('b5','2022-04-02','u1','Hotel');
+INSERT INTO booking_table(Booking_id,Booking_date,User_id,Line_of_business) VALUES ('b6','2022-04-02','u2','Flight');
+INSERT INTO booking_table(Booking_id,Booking_date,User_id,Line_of_business) VALUES ('b7','2022-04-06','u5','Flight');
+INSERT INTO booking_table(Booking_id,Booking_date,User_id,Line_of_business) VALUES ('b8','2022-04-06','u6','Hotel');
+INSERT INTO booking_table(Booking_id,Booking_date,User_id,Line_of_business) VALUES ('b9','2022-04-06','u2','Flight');
+INSERT INTO booking_table(Booking_id,Booking_date,User_id,Line_of_business) VALUES ('b10','2022-04-10','u1','Flight');
+INSERT INTO booking_table(Booking_id,Booking_date,User_id,Line_of_business) VALUES ('b11','2022-04-12','u4','Flight');
+INSERT INTO booking_table(Booking_id,Booking_date,User_id,Line_of_business) VALUES ('b12','2022-04-16','u1','Flight');
+INSERT INTO booking_table(Booking_id,Booking_date,User_id,Line_of_business) VALUES ('b13','2022-04-19','u2','Flight');
+INSERT INTO booking_table(Booking_id,Booking_date,User_id,Line_of_business) VALUES ('b14','2022-04-20','u5','Hotel');
+INSERT INTO booking_table(Booking_id,Booking_date,User_id,Line_of_business) VALUES ('b15','2022-04-22','u6','Flight');
+INSERT INTO booking_table(Booking_id,Booking_date,User_id,Line_of_business) VALUES ('b16','2022-04-26','u4','Hotel');
+INSERT INTO booking_table(Booking_id,Booking_date,User_id,Line_of_business) VALUES ('b17','2022-04-28','u2','Hotel');
+INSERT INTO booking_table(Booking_id,Booking_date,User_id,Line_of_business) VALUES ('b18','2022-04-30','u1','Hotel');
+INSERT INTO booking_table(Booking_id,Booking_date,User_id,Line_of_business) VALUES ('b19','2022-05-04','u4','Hotel');
+INSERT INTO booking_table(Booking_id,Booking_date,User_id,Line_of_business) VALUES ('b20','2022-05-06','u1','Flight');
+
+CREATE or replace TABLE user_table(
+   User_id VARCHAR(3) NOT NULL
+  ,Segment VARCHAR(2) NOT NULL
+);
+
+INSERT INTO user_table(User_id,Segment) VALUES ('u1','s1');
+INSERT INTO user_table(User_id,Segment) VALUES ('u2','s1');
+INSERT INTO user_table(User_id,Segment) VALUES ('u3','s1');
+INSERT INTO user_table(User_id,Segment) VALUES ('u4','s2');
+INSERT INTO user_table(User_id,Segment) VALUES ('u5','s2');
+INSERT INTO user_table(User_id,Segment) VALUES ('u6','s3');
+INSERT INTO user_table(User_id,Segment) VALUES ('u7','s3');
+INSERT INTO user_table(User_id,Segment) VALUES ('u8','s3');
+INSERT INTO user_table(User_id,Segment) VALUES ('u9','s3');
+INSERT INTO user_table(User_id,Segment) VALUES ('u10','s3');
+
+SELECT U.SEGMENT,COUNT(DISTINCT U.USER_ID) AS NO_OF_USERS,
+COUNT(DISTINCT CASE WHEN LINE_OF_BUSINESS='Flight' AND Booking_date BETWEEN '2022-04-01' AND '2022-04-30' THEN B.USER_ID END) AS USER_BOOKED_IN_2022APR
+FROM USER_TABLE U LEFT JOIN BOOKING_TABLE B
+ON U.USER_ID=B.USER_ID
+GROUP BY U.SEGMENT;
+
+--Q.NO:9
+--Write a sql query to find the users whose first booking was hotel booking
+
+WITH CTE AS
+(
+SELECT *,RANK() OVER(PARTITION BY USER_ID ORDER BY BOOKING_DATE) AS RNK
+FROM BOOKING_TABLE
+)
+SELECT * FROM CTE
+WHERE RNK='1' AND LINE_OF_BUSINESS='Hotel';
+
+
+WITH CTE AS
+(
+SELECT *,FIRST_VALUE(LINE_OF_BUSINESS) OVER(PARTITION BY USER_ID ORDER BY BOOKING_DATE) AS FIRST_BOOKING
+FROM BOOKING_TABLE
+)
+SELECT DISTINCT USER_ID FROM CTE
+WHERE FIRST_BOOKING='Hotel';
+
+--Q.NO:10
+--Write a query to calculate the dates between first booking and last booking
+
+
+SELECT USER_ID,MIN(BOOKING_DATE),MAX(BOOKING_DATE),
+DATEDIFF(DAY,MIN(BOOKING_DATE),MAX(BOOKING_DATE)) AS NO_OF_DAYS
+FROM BOOKING_TABLE
+GROUP BY USER_ID;
+
+
+--Q.NO:11
+--Write a query to find the count of number of flight booking and hotel booking in each of user segment of year 2022
+
+SELECT U.SEGMENT,
+SUM(CASE WHEN LINE_OF_BUSINESS='Flight' THEN 1 ELSE 0 END) AS NO_OF_FLIGHTS,
+SUM(CASE WHEN LINE_OF_BUSINESS='Hotel' THEN 1 ELSE 0 END) AS NO_OF_HOTELS
+FROM BOOKING_TABLE B INNER JOIN USER_TABLE U
+ON B.USER_ID=U.USER_ID
+WHERE DATE_PART(YEAR,BOOKING_DATE)=2022
+GROUP BY U.SEGMENT;
+
+--Q.NO:12
+--Write a sql query to find out output table as
+--emp_id,emp_default_phn_num,total_entry,total_login,total_logout,latest_login,latest_logout
+
+CREATE TABLE Emp_Checkin(
+    employeeid	INT,
+    entry_details	VARCHAR(512),
+    timestamp_details	VARCHAR(512)
+);
+
+INSERT INTO Emp_Checkin (employeeid, entry_details, timestamp_details) VALUES ('1000', 'login', '2023-06-16 01:00:15.34');
+INSERT INTO Emp_Checkin(employeeid, entry_details, timestamp_details) VALUES ('1000', 'login', '2023-06-16 02:00:15.34');
+INSERT INTO Emp_Checkin (employeeid, entry_details, timestamp_details) VALUES ('1000', 'login', '2023-06-16 03:00:15.34');
+INSERT INTO Emp_Checkin(employeeid, entry_details, timestamp_details) VALUES ('1000', 'logout', '2023-06-16 12:00:15.34');
+INSERT INTO Emp_Checkin (employeeid, entry_details, timestamp_details) VALUES ('1001', 'login', '2023-06-16 01:00:15.34');
+INSERT INTO Emp_Checkin (employeeid, entry_details, timestamp_details) VALUES ('1001', 'login', '2023-06-16 02:00:15.34');
+INSERT INTO Emp_Checkin (employeeid, entry_details, timestamp_details) VALUES ('1001', 'login', '2023-06-16 03:00:15.34');
+INSERT INTO Emp_Checkin (employeeid, entry_details, timestamp_details) VALUES ('1001', 'logout', '2023-06-16 12:00:15.34');
+
+CREATE or replace TABLE emp_det (
+    employeeid	INT,
+    phone_number	INT,
+    isdefault	VARCHAR(512),
+    date	date
+);
+
+INSERT INTO emp_det (employeeid, phone_number, isdefault, date) VALUES ('1001', '9999', 'false', '2023-01-01');
+INSERT INTO emp_det (employeeid, phone_number, isdefault, date) VALUES ('1001', '1111', 'false', '2023-01-02');
+INSERT INTO emp_det (employeeid, phone_number, isdefault, date) VALUES ('1001', '2222', 'true', '2023-01-03');
+INSERT INTO emp_det (employeeid, phone_number, isdefault, date) VALUES ('1000', '3333', 'false', '2023-01-01');
+INSERT INTO emp_det (employeeid, phone_number, isdefault, date) VALUES ('1000', '4444', 'false', '2023-01-02');
+
+WITH DEFAULT_CTE AS
+(
+SELECT * FROM (
+SELECT *,RANK() OVER(PARTITION BY EMPLOYEEID ORDER BY DATE DESC) AS RNK
+FROM EMP_DET
+WHERE ISDEFAULT='false'
+---OR QUALIFY RNK=1 CAN BE USED
+)A WHERE RNK=1),
+LOGINS AS
+(
+SELECT EMPLOYEEID,COUNT(*) AS TOTAL_ENTRIES,
+COUNT(CASE WHEN ENTRY_DETAILS='login' THEN TIMESTAMP_DETAILS ELSE NULL END) AS TOTAL_LOGINS,
+COUNT(CASE WHEN ENTRY_DETAILS='logout' THEN TIMESTAMP_DETAILS ELSE NULL END) AS TOTAL_LOGOUTS,
+MAX(CASE WHEN ENTRY_DETAILS='login' THEN TIMESTAMP_DETAILS ELSE NULL END) AS LATEST_LOGIN,
+MAX(CASE WHEN ENTRY_DETAILS='logout' THEN TIMESTAMP_DETAILS ELSE NULL END) AS LATEST_LOGOUT
+FROM EMP_CHECKIN
+GROUP BY EMPLOYEEID
+)
+SELECT E.EMPLOYEEID,E.TOTAL_ENTRIES,E.TOTAL_LOGINS,E.TOTAL_LOGOUTS,E.LATEST_LOGIN,E.LATEST_LOGOUT,
+COALESCE(ED.PHONE_NUMBER,P.PHONE_NUMBER) AS DEFAULT_PHN
+FROM LOGINS E LEFT JOIN EMP_DET ED ON E.EMPLOYEEID=ED.EMPLOYEEID AND ISDEFAULT='true'
+LEFT JOIN DEFAULT_CTE P ON P.EMPLOYEEID=E.EMPLOYEEID AND P.ISDEFAULT='false';
+
+--Q.NO:13
+--Write a sql query to find the number of juniors and sneiors can be hired with a budget of 50k
+
+Create table candidates(
+id int primary key,
+positions varchar(10) not null,
+salary int not null);
+
+
+insert into candidates values(1,'junior',5000);
+insert into candidates values(2,'junior',7000);
+insert into candidates values(3,'junior',7000);
+insert into candidates values(4,'senior',10000);
+insert into candidates values(5,'senior',30000);
+insert into candidates values(6,'senior',20000);
+
+WITH CTE AS (
+SELECT *, SUM(SALARY) OVER(PARTITION BY POSITIONS ORDER BY SALARY, ID) AS TOTAL
+FROM CANDIDATES
+),
+SENIORS AS (
+SELECT COUNT(*) AS SENIOR,COALESCE(SUM(SALARY),0) AS S_SAL FROM CTE WHERE POSITIONS = 'senior' AND TOTAL <= 50000
+),
+JUNIORS AS (
+SELECT COUNT(*) AS JUNIOR FROM CTE WHERE POSITIONS = 'junior' AND TOTAL <= 50000 - (SELECT S_SAL FROM SENIORS)
+)
+SELECT JUNIOR,SENIOR
+FROM SENIORS,JUNIORS;
+
+DELETE  FROM CANDIDATES;
+
+insert into candidates values(20,'junior',10000);
+insert into candidates values(30,'senior',15000);
+insert into candidates values(40,'senior',30000);
+
+insert into candidates values(1,'junior',15000);
+insert into candidates values(2,'junior',15000);
+insert into candidates values(3,'junior',20000);
+insert into candidates values(4,'senior',60000);
+
+describe table candidates;
+
+--Q.NO:14
+--Write a sql query to find cities where not even a single order was returned.
+--solve this problem using joins,aggregate and joins
+
+create table namaste_orders
+(
+order_id int,
+city varchar(10),
+sales int
+);
+
+create table namaste_returns
+(
+order_id int,
+return_reason varchar(20)
+);
+
+insert into namaste_orders
+values(1, 'Mysore' , 100),(2, 'Mysore' , 200),(3, 'Bangalore' , 250),(4, 'Bangalore' , 150)
+,(5, 'Mumbai' , 300),(6, 'Mumbai' , 500),(7, 'Mumbai' , 800);
+insert into namaste_returns values
+(3,'wrong item'),(6,'bad quality'),(7,'wrong item');
+
+SELECT NO.CITY FROM 
+NAMASTE_ORDERS NO LEFT JOIN NAMASTE_RETURNS NR 
+ON NO.ORDER_ID=NR.ORDER_ID
+GROUP BY NO.CITY
+HAVING COUNT(NR.ORDER_ID)=0;
+
+--Q.NO:15
+--Write a sql query to find or diplay all employees names with respect to thier job positions
+--if empty fill it as vacant
+
+
+create table job_positions(id  int,
+title varchar(100),
+groups varchar(10),
+levels varchar(10),     
+payscale int,
+totalpost int);
+
+insert into job_positions values (1, 'General manager', 'A', 'l-15', 10000, 1); 
+insert into job_positions values (2, 'Manager', 'B', 'l-14', 9000, 5); 
+insert into job_positions values (3, 'Asst. Manager', 'C', 'l-13', 8000, 10);  
+
+create table job_employees ( id  int, 
+name   varchar(100),     
+position_id  int);  
+
+insert into job_employees values (1, 'John Smith', 1); 
+insert into job_employees values (2, 'Jane Doe', 2);
+insert into job_employees values (3, 'Michael Brown', 2);
+insert into job_employees values (4, 'Emily Johnson', 2); 
+insert into job_employees values (5, 'William Lee', 3); 
+insert into job_employees values (6, 'Jessica Clark', 3); 
+insert into job_employees values (7, 'Christopher Harris', 3);
+insert into job_employees values (8, 'Olivia Wilson', 3);
+insert into job_employees values (9, 'Daniel Martinez', 3);
+insert into job_employees values (10, 'Sophia Miller', 3);
+
+
+WITH CTE AS
+(
+SELECT ID,TITLE,GROUPS,LEVELS,PAYSCALE,TOTALPOST,1 AS RN
+FROM JOB_POSITIONS
+UNION ALL
+SELECT ID,TITLE,GROUPS,LEVELS,PAYSCALE,TOTALPOST,RN+1 FROM CTE
+WHERE RN+1<=TOTALPOST
+),
+EMPS AS
+(
+SELECT *, ROW_NUMBER() OVER(PARTITION BY POSITION_ID ORDER BY ID) AS RN
+FROM JOB_EMPLOYEES
+)
+SELECT C.*,COALESCE(E.NAME,'VACANT') FROM
+CTE C LEFT JOIN EMPS E
+ON C.ID=E.POSITION_ID AND C.RN=E.RN
+ORDER BY C.ID,C.RN;
+
+
+--Q.NO:16
+--Write a sql query to find the path that is start and end location of traveller if you dont know it was started and ended
+
+CREATE TABLE travel_data (
+    customer VARCHAR(10),
+    start_loc VARCHAR(50),
+    end_loc VARCHAR(50)
+);
+
+INSERT INTO travel_data (customer, start_loc, end_loc) VALUES
+    ('c1', 'New York', 'Lima'),
+    ('c1', 'London', 'New York'),
+    ('c1', 'Lima', 'Sao Paulo'),
+    ('c1', 'Sao Paulo', 'New Delhi'),
+    ('c2', 'Mumbai', 'Hyderabad'),
+    ('c2', 'Surat', 'Pune'),
+    ('c2', 'Hyderabad', 'Surat'),
+    ('c3', 'Kochi', 'Kurnool'),
+    ('c3', 'Lucknow', 'Agra'),
+    ('c3', 'Agra', 'Jaipur'),
+    ('c3', 'Jaipur', 'Kochi');
+
+
+SELECT TD.CUSTOMER,MAX(CASE WHEN TD1.START_LOC IS NULL THEN TD.START_LOC END) AS STARTING_LOC,
+MIN(CASE WHEN TD2.END_LOC IS NULL THEN TD.END_LOC END) AS ENDING_LOC
+FROM TRAVEL_DATA TD LEFT JOIN TRAVEL_DATA TD1
+ON TD.CUSTOMER=TD1.CUSTOMER AND TD.START_LOC=TD1.END_LOC
+LEFT JOIN TRAVEL_DATA TD2 ON TD.CUSTOMER=TD2.CUSTOMER AND TD.END_LOC=TD2.START_LOC
+GROUP BY TD.CUSTOMER;
+
+--Q.NO:17
+--Write a sql query to find the price of product at start of month and difference with the previous month
+
+
+create table sku 
+(
+sku_id int,
+price_date date ,
+price int
+);
+
+insert into sku values 
+(1,'2023-01-01',10)
+,(1,'2023-02-15',15)
+,(1,'2023-03-03',18)
+,(1,'2023-03-27',15)
+,(1,'2023-04-06',20);
+
+WITH CTE AS
+(
+SELECT *,ROW_NUMBER()OVER(PARTITION BY SKU_ID,YEAR(PRICE_DATE),MONTH(PRICE_DATE) ORDER BY PRICE_DATE DESC) AS RN
+FROM SKU
+QUALIFY RN=1
+),CTE2 AS
+(
+SELECT SKU_ID,PRICE_DATE,PRICE FROM SKU WHERE DATE_PART(DAY,PRICE_DATE)=1
+UNION ALL
+SELECT SKU_ID,DATE_TRUNC(MONTH,DATEADD(MONTH,1,PRICE_DATE)) AS NEXT_MONTH,PRICE FROM CTE
+WHERE DATE_TRUNC(MONTH,DATEADD(MONTH,1,PRICE_DATE)) NOT IN(SELECT PRICE_DATE FROM SKU WHERE DATE_PART(DAY,PRICE_DATE)=1)
+ORDER BY PRICE_DATE
+)
+SELECT *,(PRICE-LAG(PRICE,1,PRICE) OVER(ORDER BY PRICE_DATE)) AS DIFF
+FROM CTE2;
+
+--Q.NO:18
+--Write a sql query to retrive first_name,middle,last_name
+
+create table customers  (customer_name varchar(30));
+insert into customers values ('Ankit Bansal')
+,('Vishal Pratap Singh')
+,('Michael');
+
+INSERT INTO CUSTOMERS VALUES('VISWA TEJA INDURI');
+
+WITH CTE AS
+(
+SELECT CUSTOMER_NAME, LENGTH(CUSTOMER_NAME)-LENGTH(REPLACE(CUSTOMER_NAME,' ','')) AS NO_OF_SPACES,CHARINDEX(' ',CUSTOMER_NAME) AS FIRST_SPACE
+,CHARINDEX(' ',CUSTOMER_NAME,CHARINDEX(' ',CUSTOMER_NAME)+1) AS SECOND_SPACE FROM CUSTOMERS
+)
+SELECT CUSTOMER_NAME,
+CASE WHEN NO_OF_SPACES=0 THEN CUSTOMER_NAME
+ELSE SUBSTR(CUSTOMER_NAME,0,FIRST_SPACE-1) END AS FIRST_NAME,
+CASE WHEN NO_OF_SPACES=2 THEN SUBSTR(CUSTOMER_NAME,FIRST_SPACE+1,SECOND_SPACE-FIRST_SPACE-1)
+ELSE NULL END AS MIDDLE_NAME,
+CASE WHEN NO_OF_SPACES=0 THEN NULL
+WHEN NO_OF_SPACES=2 THEN SUBSTR(CUSTOMER_NAME,SECOND_SPACE+1,LENGTH(CUSTOMER_NAME))
+ELSE  SUBSTR(CUSTOMER_NAME,FIRST_SPACE+1,LENGTH(CUSTOMER_NAME)) END AS LAST_NAME
+FROM CTE;
+
+
+--Q.NO:19
+--Write a sql query to find
+-- In the last 7 days, get a distribution of games (% of total games) based on the social interaction that is happening during 
+--the games. Please consider the following as the categories for getting the distribution:
+--No Social Interaction (No messages, emojis or gifts sent during the game)
+--One sided interaction (Messages, emojis or gifts sent during the game by only one player)
+--Both sided Interaction without custom_typed messages
+--Both sided interaction with custom_typed_messages from at least one player
+
+CREATE TABLE user_interactions (
+    user_id varchar(10),
+    event varchar(15),
+    event_date DATE,
+    interaction_type varchar(15),
+    game_id varchar(10),
+    event_time TIME
+);
+
+-- Insert the data
+INSERT INTO user_interactions 
+VALUES
+('abc', 'game_start', '2024-01-01', null, 'ab0000', '10:00:00'),
+('def', 'game_start', '2024-01-01', null, 'ab0000', '10:00:00'),
+('def', 'send_emoji', '2024-01-01', 'emoji1', 'ab0000', '10:03:20'),
+('def', 'send_message', '2024-01-01', 'preloaded_quick', 'ab0000', '10:03:49'),
+('abc', 'send_gift', '2024-01-01', 'gift1', 'ab0000', '10:04:40'),
+('abc', 'game_end', '2024-01-01', NULL, 'ab0000', '10:10:00'),
+('def', 'game_end', '2024-01-01', NULL, 'ab0000', '10:10:00'),
+('abc', 'game_start', '2024-01-01', null, 'ab9999', '10:00:00'),
+('def', 'game_start', '2024-01-01', null, 'ab9999', '10:00:00'),
+('abc', 'send_message', '2024-01-01', 'custom_typed', 'ab9999', '10:02:43'),
+('abc', 'send_gift', '2024-01-01', 'gift1', 'ab9999', '10:04:40'),
+('abc', 'game_end', '2024-01-01', NULL, 'ab9999', '10:10:00'),
+('def', 'game_end', '2024-01-01', NULL, 'ab9999', '10:10:00'),
+('abc', 'game_start', '2024-01-01', null, 'ab1111', '10:00:00'),
+('def', 'game_start', '2024-01-01', null, 'ab1111', '10:00:00'),
+('abc', 'game_end', '2024-01-01', NULL, 'ab1111', '10:10:00'),
+('def', 'game_end', '2024-01-01', NULL, 'ab1111', '10:10:00'),
+('abc', 'game_start', '2024-01-01', null, 'ab1234', '10:00:00'),
+('def', 'game_start', '2024-01-01', null, 'ab1234', '10:00:00'),
+('abc', 'send_message', '2024-01-01', 'custom_typed', 'ab1234', '10:02:43'),
+('def', 'send_emoji', '2024-01-01', 'emoji1', 'ab1234', '10:03:20'),
+('def', 'send_message', '2024-01-01', 'preloaded_quick', 'ab1234', '10:03:49'),
+('abc', 'send_gift', '2024-01-01', 'gift1', 'ab1234', '10:04:40'),
+('abc', 'game_end', '2024-01-01', NULL, 'ab1234', '10:10:00'),
+('def', 'game_end', '2024-01-01', NULL, 'ab1234', '10:10:00');
+
+WITH CTE AS
+(
+SELECT GAME_ID,
+CASE WHEN COUNT(INTERACTION_TYPE)=0 THEN 'No Social Interaction'
+WHEN COUNT(DISTINCT CASE WHEN INTERACTION_TYPE IS NOT NULL THEN USER_ID END)=1 THEN 'One sided interaction' 
+WHEN COUNT(DISTINCT CASE WHEN INTERACTION_TYPE IS NOT NULL THEN USER_ID END)=2
+AND COUNT(DISTINCT CASE WHEN INTERACTION_TYPE='custom_typed' THEN USER_ID END)=0THEN 'Both sided Interaction without custom_typed messages'
+WHEN  COUNT(DISTINCT CASE WHEN INTERACTION_TYPE IS NOT NULL THEN USER_ID END)=2
+AND COUNT(DISTINCT CASE WHEN INTERACTION_TYPE='custom_typed' THEN USER_ID END)>=1 THEN 'Both sided interaction with custom_typed_messages from at least one player'
+END AS GAME_TYPE
+FROM USER_INTERACTIONS
+GROUP BY GAME_ID
+)
+SELECT GAME_TYPE,COUNT(*)*100.0/COUNT(*) OVER() AS PERCENT_DIST
+FROM CTE
+GROUP BY GAME_TYPE;
+
+
+--Q.NO:20
+--Write a sql query to find supplier_id,product_id50,no_of_days,starting_date of record date for which stock quantity is less than 50 for 
+--2 or more consecutive days
+
+CREATE TABLE stock (
+    supplier_id INT,
+    product_id INT,
+    stock_quantity INT,
+    record_date DATE
+);
+
+-- Insert the data
+INSERT INTO stock (supplier_id, product_id, stock_quantity, record_date)
+VALUES
+    (1, 1, 60, '2022-01-01'),
+    (1, 1, 40, '2022-01-02'),
+    (1, 1, 35, '2022-01-03'),
+    (1, 1, 45, '2022-01-04'),
+ (1, 1, 51, '2022-01-06'),
+ (1, 1, 55, '2022-01-09'),
+ (1, 1, 25, '2022-01-10'),
+    (1, 1, 48, '2022-01-11'),
+ (1, 1, 45, '2022-01-15'),
+    (1, 1, 38, '2022-01-16'),
+    (1, 2, 45, '2022-01-08'),
+    (1, 2, 40, '2022-01-09'),
+    (2, 1, 45, '2022-01-06'),
+    (2, 1, 55, '2022-01-07'),
+    (2, 2, 45, '2022-01-08'),
+ (2, 2, 48, '2022-01-09'),
+    (2, 2, 35, '2022-01-10'),
+ (2, 2, 52, '2022-01-15'),
+    (2, 2, 23, '2022-01-16');
+
+WITH CTE AS
+(
+SELECT SUPPLIER_ID,PRODUCT_ID,RECORD_DATE,
+DATEDIFF(DAY,LAG(RECORD_DATE,1,RECORD_DATE) OVER(PARTITION BY SUPPLIER_ID,PRODUCT_ID ORDER BY RECORD_DATE),RECORD_DATE) AS DIFF
+FROM STOCK WHERE STOCK_QUANTITY<50
+),
+CTE2 AS
+(
+SELECT SUPPLIER_ID,PRODUCT_ID,RECORD_DATE,DIFF,
+SUM(CASE WHEN DIFF<=1 THEN 0 ELSE 1 END) OVER(PARTITION BY SUPPLIER_ID,PRODUCT_ID ORDER BY RECORD_DATE) AS GROUP_KEY
+FROM CTE
+)
+SELECT SUPPLIER_ID,PRODUCT_ID,min(RECORD_DATE) as starting_date,count(*) as no_of_days
+FROM CTE2
+group by SUPPLIER_ID,PRODUCT_ID,group_key
+having count(*)>1;
+
+--Q.NO:21
+--Write a sql query to find the product hours of employee from swipe tables
+
+
+
+CREATE TABLE swipe (
+    employee_id INT,
+    activity_type VARCHAR(10),
+    activity_time datetime
+);
+
+INSERT INTO swipe (employee_id, activity_type, activity_time) VALUES
+(1, 'login', '2024-07-23 08:00:00'),
+(1, 'logout', '2024-07-23 12:00:00'),
+(1, 'login', '2024-07-23 13:00:00'),
+(1, 'logout', '2024-07-23 17:00:00'),
+(2, 'login', '2024-07-23 09:00:00'),
+(2, 'logout', '2024-07-23 11:00:00'),
+(2, 'login', '2024-07-23 12:00:00'),
+(2, 'logout', '2024-07-23 15:00:00'),
+(1, 'login', '2024-07-24 08:30:00'),
+(1, 'logout', '2024-07-24 12:30:00'),
+(2, 'login', '2024-07-24 09:30:00'),
+(2, 'logout', '2024-07-24 10:30:00');
+
+
+WITH CTE AS
+(
+SELECT *,CAST(ACTIVITY_TIME AS DATE) AS DAY,
+LEAD(ACTIVITY_TIME,1) OVER(PARTITION BY EMPLOYEE_ID,CAST(ACTIVITY_TIME AS DATE) ORDER BY ACTIVITY_TIME) AS LOGOUT_TIME
+FROM SWIPE
+)
+SELECT EMPLOYEE_ID,DAY,
+DATEDIFF(HOUR,MIN(ACTIVITY_TIME),MAX(LOGOUT_TIME)) AS OFC_HRS,
+SUM(DATEDIFF(HOUR,ACTIVITY_TIME,LOGOUT_TIME)) AS PROD_OFC_HRS
+FROM CTE 
+WHERE ACTIVITY_TYPE='login'
+GROUP BY EMPLOYEE_ID,DAY;
+
+--Q.NO:22
+--Write a sql query to find 
+--remove duplicates in case source,destiation,distance are same and keep the first value
+
+CREATE or replace TABLE city_distance
+(
+    distance INT,
+    source VARCHAR(512),
+    destination VARCHAR(512)
+);
+
+
+
+INSERT INTO city_distance(distance, source, destination) VALUES ('100', 'New Delhi', 'Panipat');
+INSERT INTO city_distance(distance, source, destination) VALUES ('200', 'Ambala', 'New Delhi');
+INSERT INTO city_distance(distance, source, destination) VALUES ('150', 'Bangalore', 'Mysore');
+INSERT INTO city_distance(distance, source, destination) VALUES ('150', 'Mysore', 'Bangalore');
+INSERT INTO city_distance(distance, source, destination) VALUES ('250', 'Mumbai', 'Pune');
+INSERT INTO city_distance(distance, source, destination) VALUES ('250', 'Pune', 'Mumbai');
+INSERT INTO city_distance(distance, source, destination) VALUES ('2500', 'Chennai', 'Bhopal');
+INSERT INTO city_distance(distance, source, destination) VALUES ('2500', 'Bhopal', 'Chennai');
+INSERT INTO city_distance(distance, source, destination) VALUES ('60', 'Tirupati', 'Tirumala');
+INSERT INTO city_distance(distance, source, destination) VALUES ('80', 'Tirumala', 'Tirupati');
+
+
+WITH CTE AS
+(
+SELECT *,ROW_NUMBER() OVER(ORDER BY (SELECT NULL)) AS RN --ORDER BY (SELECT NULL) give rownumber as it is
+FROM CITY_DISTANCE
+)
+SELECT C1.*
+FROM CTE C1 LEFT JOIN CTE C2
+ON C1.SOURCE=C2.DESTINATION AND C1.DESTINATION=C2.SOURCE
+WHERE C2.DISTANCE IS NULL OR C1.DISTANCE!=C2.DISTANCE OR C1.RN<C2.RN
+ORDER BY RN;
+
+--Q.NO:23
+--Write a sql query to calculate the percentage increase in covid cases each month versus cumulative cases as prior month
+--return the month number and percentage increase rounded to one decimal order by month.
+
+
+CREATE TABLE cases_data (
+record_date DATE,
+cases_count INT
+);
+
+INSERT INTO cases_data (record_date, cases_count) VALUES ('2021-01-01', 66);
+INSERT INTO cases_data (record_date, cases_count) VALUES ('2021-01-02', 41);
+INSERT INTO cases_data (record_date, cases_count) VALUES ('2021-01-03', 54);
+INSERT INTO cases_data (record_date, cases_count) VALUES ('2021-01-04', 68);
+INSERT INTO cases_data (record_date, cases_count) VALUES ('2021-01-05', 16);
+INSERT INTO cases_data (record_date, cases_count) VALUES ('2021-01-06', 90);
+INSERT INTO cases_data (record_date, cases_count) VALUES ('2021-01-07', 34);
+INSERT INTO cases_data (record_date, cases_count) VALUES ('2021-01-08', 84);
+INSERT INTO cases_data (record_date, cases_count) VALUES ('2021-01-09', 71);
+INSERT INTO cases_data (record_date, cases_count) VALUES ('2021-01-10', 14);
+INSERT INTO cases_data (record_date, cases_count) VALUES ('2021-01-11', 48);
+INSERT INTO cases_data (record_date, cases_count) VALUES ('2021-01-12', 72);
+INSERT INTO cases_data (record_date, cases_count) VALUES ('2021-01-13', 55);
+INSERT INTO cases_data (record_date, cases_count) VALUES ('2021-01-14', 61);
+-- February data
+INSERT INTO cases_data (record_date, cases_count) VALUES ('2021-02-01', 45);
+INSERT INTO cases_data (record_date, cases_count) VALUES ('2021-02-02', 67);
+INSERT INTO cases_data (record_date, cases_count) VALUES ('2021-02-03', 38);
+
+-- March data
+INSERT INTO cases_data (record_date, cases_count) VALUES ('2021-03-01', 59);
+INSERT INTO cases_data (record_date, cases_count) VALUES ('2021-03-02', 73);
+INSERT INTO cases_data (record_date, cases_count) VALUES ('2021-03-03', 62);
+
+-- April data
+INSERT INTO cases_data (record_date, cases_count) VALUES ('2021-04-01', 80);
+INSERT INTO cases_data (record_date, cases_count) VALUES ('2021-04-02', 49);
+INSERT INTO cases_data (record_date, cases_count) VALUES ('2021-04-03', 33);
+
+-- May data
+INSERT INTO cases_data (record_date, cases_count) VALUES ('2021-05-01', 77);
+INSERT INTO cases_data (record_date, cases_count) VALUES ('2021-05-02', 63);
+INSERT INTO cases_data (record_date, cases_count) VALUES ('2021-05-03', 58);
+
+-- June data
+INSERT INTO cases_data (record_date, cases_count) VALUES ('2021-06-01', 92);
+INSERT INTO cases_data (record_date, cases_count) VALUES ('2021-06-02', 46);
+INSERT INTO cases_data (record_date, cases_count) VALUES ('2021-06-03', 81);
+
+-- July data
+INSERT INTO cases_data (record_date, cases_count) VALUES ('2021-07-01', 69);
+INSERT INTO cases_data (record_date, cases_count) VALUES ('2021-07-02', 75);
+INSERT INTO cases_data (record_date, cases_count) VALUES ('2021-07-03', 88);
+
+-- August data
+INSERT INTO cases_data (record_date, cases_count) VALUES ('2021-08-01', 53);
+INSERT INTO cases_data (record_date, cases_count) VALUES ('2021-08-02', 60);
+INSERT INTO cases_data (record_date, cases_count) VALUES ('2021-08-03', 79);
+
+WITH CTE AS
+(
+SELECT MONTH(RECORD_DATE) AS RECORD_MONTH,SUM(CASES_COUNT) AS CASES_CNT
+FROM CASES_DATA 
+GROUP BY MONTH(RECORD_DATE)
+),CTE2 AS
+(
+SELECT RECORD_MONTH,CASES_CNT,
+SUM(CASES_CNT)OVER(ORDER BY RECORD_MONTH ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS PRIOR_COUNT
+FROM CTE
+)
+SELECT RECORD_MONTH,ROUND(CASES_CNT*100.0/PRIOR_COUNT) AS PRECENT_INCREASE
+FROM CTE2;
+
+
+--Q.NO:24
+--Write a sql query to find the house which maximum number of wins in the battle for each region,dispaly region,house and no_of_battles.
+
+CREATE TABLE king (
+    k_no INT PRIMARY KEY,
+    king VARCHAR(50),
+    house VARCHAR(50)
+);
+
+CREATE TABLE battle (
+    battle_number INT PRIMARY KEY,
+    name VARCHAR(100),
+    attacker_king INT,
+    defender_king INT,
+    attacker_outcome INT,
+    region VARCHAR(50),
+    FOREIGN KEY (attacker_king) REFERENCES king(k_no),
+    FOREIGN KEY (defender_king) REFERENCES king(k_no)
+);
+
+delete from king;
+INSERT INTO king (k_no, king, house) VALUES
+(1, 'Robb Stark', 'House Stark'),
+(2, 'Joffrey Baratheon', 'House Lannister'),
+(3, 'Stannis Baratheon', 'House Baratheon'),
+(4, 'Balon Greyjoy', 'House Greyjoy'),
+(5, 'Mace Tyrell', 'House Tyrell'),
+(6, 'Doran Martell', 'House Martell');
+
+delete from battle;
+-- Insert data into the 'battle' table
+INSERT INTO battle (battle_number, name, attacker_king, defender_king, attacker_outcome, region) VALUES
+(1, 'Battle of Oxcross', 1, 2, 1, 'The North'),
+(2, 'Battle of Blackwater', 3, 4, 0, 'The North'),
+(3, 'Battle of the Fords', 1, 5, 1, 'The Reach'),
+(4, 'Battle of the Green Fork', 2, 6, 0, 'The Reach'),
+(5, 'Battle of the Ruby Ford', 1, 3, 1, 'The Riverlands'),
+(6, 'Battle of the Golden Tooth', 2, 1, 0, 'The North'),
+(7, 'Battle of Riverrun', 3, 4, 1, 'The Riverlands'),
+(8, 'Battle of Riverrun', 1, 3, 0, 'The Riverlands');
+--for each region find house which has won maximum no of battles. display region, house and no of wins
+select * from battle;
+select * from king;
+
+WITH CTE AS
+(
+SELECT B.REGION,K.HOUSE,COUNT(*) AS NO_OF_WINS,RANK()OVER(PARTITION BY B.REGION ORDER BY COUNT(*) DESC) AS RN
+FROM KING K INNER JOIN BATTLE B ON
+K.K_NO= CASE WHEN ATTACKER_OUTCOME=0 THEN DEFENDER_KING ELSE ATTACKER_KING END
+GROUP BY B.REGION,K.HOUSE
+)
+SELECT * FROM CTE WHERE RN=1;
+
+--Q.NO:25
+--Write a sql query to find the consecutive seats where 1 means free and 0 means filled.
+--atleast 2 consecutive should be free
+
+CREATE TABLE cinema (
+    seat_id INT PRIMARY KEY,
+    free int
+);
+
+
+delete from cinema;
+INSERT INTO cinema (seat_id, free) VALUES (1, 1);
+INSERT INTO cinema (seat_id, free) VALUES (2, 0);
+INSERT INTO cinema (seat_id, free) VALUES (3, 1);
+INSERT INTO cinema (seat_id, free) VALUES (4, 1);
+INSERT INTO cinema (seat_id, free) VALUES (5, 1);
+INSERT INTO cinema (seat_id, free) VALUES (6, 0);
+INSERT INTO cinema (seat_id, free) VALUES (7, 1);
+INSERT INTO cinema (seat_id, free) VALUES (8, 1);
+INSERT INTO cinema (seat_id, free) VALUES (9, 0);
+INSERT INTO cinema (seat_id, free) VALUES (10, 1);
+INSERT INTO cinema (seat_id, free) VALUES (11, 0);
+INSERT INTO cinema (seat_id, free) VALUES (12, 1);
+INSERT INTO cinema (seat_id, free) VALUES (13, 0);
+INSERT INTO cinema (seat_id, free) VALUES (14, 1);
+INSERT INTO cinema (seat_id, free) VALUES (15, 1);
+INSERT INTO cinema (seat_id, free) VALUES (16, 0);
+INSERT INTO cinema (seat_id, free) VALUES (17, 1);
+INSERT INTO cinema (seat_id, free) VALUES (18, 1);
+INSERT INTO cinema (seat_id, free) VALUES (19, 1);
+INSERT INTO cinema (seat_id, free) VALUES (20, 1);
+
+WITH CTE AS
+(
+SELECT *,ROW_NUMBER()OVER(ORDER BY SEAT_ID) AS RN FROM 
+CINEMA WHERE FREE=1
+),
+CTE2 AS
+(
+SELECT *,SEAT_ID-RN AS GROUP_KEY FROM CTE
+),
+CTE3 AS
+(
+SELECT SEAT_ID,COUNT(*)OVER(PARTITION BY GROUP_KEY) AS CNT
+FROM CTE2
+QUALIFY CNT>=2)
+SELECT SEAT_ID FROM CTE3;
+
+
