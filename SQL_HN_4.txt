@@ -1,0 +1,1202 @@
+CREATE OR REPLACE DATABASE SQL_HN_4;
+
+CREATE OR REPLACE SCHEMA SCHEMA_HN_4;
+
+--Q.NO:1
+--Write a sql query to suggest pages that are liked by friends  
+
+
+CREATE TABLE friends (
+    user_id INT,
+    friend_id INT
+);
+
+
+INSERT INTO friends VALUES
+(1, 2),
+(1, 3),
+(1, 4),
+(2, 1),
+(3, 1),
+(3, 4),
+(4, 1),
+(4, 3);
+
+
+CREATE TABLE likes (
+    user_id INT,
+    page_id CHAR(1)
+);
+
+-- Insert data into likes table
+INSERT INTO likes VALUES
+(1, 'A'),
+(1, 'B'),
+(1, 'C'),
+(2, 'A'),
+(3, 'B'),
+(3, 'C'),
+(4, 'B');
+
+SELECT DISTINCT F.USER_ID,L.PAGE_ID
+FROM FRIENDS F INNER JOIN LIKES L 
+ON F.FRIEND_ID=L.USER_ID
+LEFT JOIN LIKES L2 ON F.USER_ID=L2.USER_ID AND L.PAGE_ID=L2.PAGE_ID
+WHERE L2.PAGE_ID IS NULL;
+
+WITH CTE1 AS
+(
+SELECT F.USER_ID,L.PAGE_ID
+FROM FRIENDS F INNER JOIN LIKES L
+ON F.USER_ID=L.USER_ID
+),
+CTE2 AS
+(
+SELECT F.USER_ID,F.FRIEND_ID,L.PAGE_ID
+FROM FRIENDS F INNER JOIN LIKES L
+ON F.FRIEND_ID=L.USER_ID
+)
+SELECT DISTINCT C2.USER_ID,C2.PAGE_ID
+FROM CTE2 C2 LEFT JOIN CTE1 C1
+ON C2.USER_ID=C1.USER_ID AND C2.PAGE_ID=C1.PAGE_ID
+WHERE C1.PAGE_ID IS NULL;
+
+--Q.NO:2
+--Write a sql query to find number of active prime memebers by end of 2020 in each market place.
+--s-subscribe,r-renewal,c-cancel
+
+
+CREATE or replace TABLE subscription_history (
+    customer_id INT,
+    marketplace VARCHAR(10),
+    event_date DATE,
+    event CHAR(1),
+    subscription_period INT
+);
+
+INSERT INTO subscription_history VALUES (1, 'India', '2020-01-05', 'S', 6);
+INSERT INTO subscription_history VALUES (1, 'India', '2020-12-05', 'R', 1);
+INSERT INTO subscription_history VALUES (1, 'India', '2021-02-05', 'C', null);
+INSERT INTO subscription_history VALUES (2, 'India', '2020-02-15', 'S', 12);
+INSERT INTO subscription_history VALUES (2, 'India', '2020-11-20', 'C', null);
+INSERT INTO subscription_history VALUES (3, 'USA', '2019-12-01', 'S', 12);
+INSERT INTO subscription_history VALUES (3, 'USA', '2020-12-01', 'R', 12);
+INSERT INTO subscription_history VALUES (4, 'USA', '2020-01-10', 'S', 6);
+INSERT INTO subscription_history VALUES (4, 'USA', '2020-09-10', 'R', 3);
+INSERT INTO subscription_history VALUES (4, 'USA', '2020-12-25', 'C', null);
+INSERT INTO subscription_history VALUES (5, 'UK', '2020-06-20', 'S', 12);
+INSERT INTO subscription_history VALUES (5, 'UK', '2020-11-20', 'C', null);
+INSERT INTO subscription_history VALUES (6, 'UK', '2020-07-05', 'S', 6);
+INSERT INTO subscription_history VALUES (6, 'UK', '2021-03-05', 'R', 6);
+INSERT INTO subscription_history VALUES (7, 'Canada', '2020-08-15', 'S', 12);
+INSERT INTO subscription_history VALUES (8, 'Canada', '2020-09-10', 'S', 12);
+INSERT INTO subscription_history VALUES (8, 'Canada', '2020-12-10', 'C', null);
+INSERT INTO subscription_history VALUES (9, 'Canada', '2020-11-10', 'S', 1);
+
+WITH CTE AS
+(
+SELECT *,ROW_NUMBER()OVER(PARTITION BY CUSTOMER_ID ORDER BY EVENT_DATE DESC) AS RN
+FROM SUBSCRIPTION_HISTORY
+WHERE EVENT_DATE<='2020-12-31'
+)
+SELECT CUSTOMER_ID
+FROM CTE WHERE RN=1 AND EVENT!='C' AND 
+DATEADD(MONTH,SUBSCRIPTION_PERIOD,EVENT_DATE)>='2020-12-31';
+
+--Q.NO:3
+--Write a sql query to print n times a given n numbers
+--1,2,3 --1,2,2,3,3,3
+--USING CROSS JOIN IT CAN BE DONE IF NUMBERS ARE CONSECUTIVE.
+
+create table numbers (n int);
+
+insert into numbers values (1),(2),(3),(4),(5);
+
+insert into numbers values (9);
+
+WITH CTE AS
+(
+SELECT N,1 AS FLAG FROM NUMBERS
+UNION ALL
+SELECT N,FLAG+1 AS FLAG FROM CTE
+WHERE FLAG+1<=N
+)
+SELECT N FROM CTE
+ORDER BY N;
+
+--Q.NO:5
+--Write a sql query to find 
+--Columns: user_id, poll_id, poll_option_id, amount, created_dt
+--Scenario: Users invest money in different poll options predicting the outcome of an event.
+--Event
+--Question: How many matches will the Indian cricket team win in 2022?
+--Options:
+
+--Less than 50
+--50–60
+--61–65 (Correct Answer)
+--Greater than 65
+--India won 63 matches, so Option C (61–65) is the correct one.
+
+--Settlement Logic
+--All money invested in incorrect options (A, B, D) is pooled.
+--This pool is distributed proportionally among users who invested in the correct option (C).
+--Example:
+--Total incorrect investment: ₹1500
+--Correct option investments: ₹250, ₹200, ₹50
+--Distribution: ₹750, ₹600, ₹150 respectively
+
+create table polls
+(
+user_id varchar(4),
+poll_id varchar(3),
+poll_option_id varchar(3),
+amount int,
+created_date date
+);
+
+
+INSERT INTO polls (user_id, poll_id, poll_option_id, amount, created_date) VALUES
+('id1', 'p1', 'A', 200, '2021-12-01'),
+('id2', 'p1', 'C', 250, '2021-12-01'),
+('id3', 'p1', 'A', 200, '2021-12-01'),
+('id4', 'p1', 'B', 500, '2021-12-01'),
+('id5', 'p1', 'C', 50, '2021-12-01'),
+('id6', 'p1', 'D', 500, '2021-12-01'),
+('id7', 'p1', 'C', 200, '2021-12-01'),
+('id8', 'p1', 'A', 100, '2021-12-01'),
+('id9', 'p2', 'A', 300, '2023-01-10'),
+('id10', 'p2', 'C', 400, '2023-01-11'),
+('id11', 'p2', 'B', 250, '2023-01-12'),
+('id12', 'p2', 'D', 600, '2023-01-13'),
+('id13', 'p2', 'C', 150, '2023-01-14'),
+('id14', 'p2', 'A', 100, '2023-01-15'),
+('id15', 'p2', 'C', 200, '2023-01-16');
+
+create table poll_answers
+(
+poll_id varchar(3),
+correct_option_id varchar(3)
+);
+
+
+INSERT INTO poll_answers (poll_id, correct_option_id) VALUES
+('p1', 'C'),('p2', 'A');
+
+WITH CTE1 AS
+(
+SELECT P.POLL_ID,SUM(P.AMOUNT) AS TOTAL
+FROM POLLS P INNER JOIN POLL_ANSWERS PA
+ON P.POLL_ID=PA.POLL_ID
+WHERE P.POLL_OPTION_ID!=PA.CORRECT_OPTION_ID
+GROUP BY P.POLL_ID
+),
+CTE2 AS
+(
+SELECT P.POLL_ID,USER_ID,AMOUNT/SUM(AMOUNT) OVER(PARTITION BY P.POLL_ID) AS WINNING_AMOUNT_PROP
+FROM POLLS P INNER JOIN POLL_ANSWERS PA
+ON P.POLL_ID=PA.POLL_ID
+WHERE P.POLL_OPTION_ID=PA.CORRECT_OPTION_ID
+)
+SELECT C2.POLL_ID,C2.USER_ID,C2.WINNING_AMOUNT_PROP*C1.TOTAL AS WIN_AMOUNT
+FROM CTE2 C2 INNER JOIN CTE1 C1 
+ON C2.POLL_ID=C1.POLL_ID;
+
+--Q.NO:6
+--Write a sql query to find phone numbers which dont have any repeating numbers and all numbers must be 
+--unique.
+
+create or replace table phone_numbers (num varchar(20));
+
+insert into phone_numbers values
+('1234567780'),
+('2234578996'),
+('+1-12244567780'),
+('+32-2233567889'),
+('+2-23456987312'),
+('+91-9087654123'),
+('+23-9085761324'),
+('+11-8091013345');
+
+WITH CTE AS
+(
+SELECT *,CASE WHEN POSITION('-' IN NUM)=0 THEN NUM ELSE SPLIT_PART(NUM,'-',2) END AS NEW_NUM
+FROM PHONE_NUMBERS
+)
+SELECT * FROM CTE,LATERAL SPLIT_TO_TABLE(NEW_NUM,'');
+--REGEXP_SPLIT_TO_TABLE AND COUNT THE DIGITS IT WORKS IN POSTGRE
+
+--Q.NO:7
+--Task:
+--1. Identify user sessions.
+--A session is defined as a sequence of activities by a user where the time difference 
+--between consecutive events is less than or equal to 30 minutes.
+--If the time between two events exceeds 30 minutes, it's considered the start of a new session.
+
+-- 2.For each session, calculate the following metrics:
+--- session_id: A unique identifier for each session.
+--- session_start_time: The timestamp of the first event in the session.
+--- session_end_time: The timestamp of the last event in the session.
+--- session_duration: The difference between session_end_time and session_start_time.
+--- event_count: The number of events in the session.
+
+create table events 
+(userid int , 
+event_type varchar(20),
+event_time datetime);
+
+insert into events VALUES (1, 'click', '2023-09-10 09:00:00');
+insert into events VALUES (1, 'click', '2023-09-10 10:00:00');
+insert into events VALUES (1, 'scroll', '2023-09-10 10:20:00');
+insert into events VALUES (1, 'click', '2023-09-10 10:50:00');
+insert into events VALUES (1, 'scroll', '2023-09-10 11:40:00');
+insert into events VALUES (1, 'click', '2023-09-10 12:40:00');
+insert into events VALUES (1, 'scroll', '2023-09-10 12:50:00');
+insert into events VALUES (2, 'click', '2023-09-10 09:00:00');
+insert into events VALUES (2, 'scroll', '2023-09-10 09:20:00');
+insert into events VALUES (2, 'click', '2023-09-10 10:30:00');
+
+WITH CTE AS
+(
+SELECT *,
+LAG(EVENT_TIME,1,EVENT_TIME) OVER(PARTITION BY USERID ORDER BY EVENT_TIME) AS PREV_EVENT_TIME
+,DATEDIFF(MINUTE,LAG(EVENT_TIME,1,EVENT_TIME) OVER(PARTITION BY USERID ORDER BY EVENT_TIME),EVENT_TIME) AS SESSION_DURATION
+FROM EVENTS
+),
+CTE2 AS
+(
+SELECT *,CASE WHEN SESSION_DURATION<=30 THEN 1 ELSE 0 END AS SESSION_ID,
+SUM(CASE WHEN SESSION_DURATION<=30 THEN 1 ELSE 0 END)OVER(PARTITION BY  USERID ORDER BY EVENT_TIME) AS SESSION_GROUP
+FROM CTE
+)
+SELECT USERID,SESSION_GROUP,MIN(EVENT_TIME) AS EVENT_START_TIME,MAX(EVENT_TIME) AS EVENT_END_TIME,
+COUNT(*) AS NO_OF_SESSIONS,
+DATEDIFF(MINUTE,MIN(EVENT_TIME),MAX(EVENT_TIME)) AS SESSION_TIME
+FROM CTE2
+GROUP BY USERID,SESSION_GROUP
+ORDER BY USERID,SESSION_GROUP;
+
+--Q.NO:8
+--Write a sql query to find the number of matches played each player and in how many these
+--batted and in how may of these they bowled.
+
+CREATE or replace TABLE cricket_match(
+    matchid INT NOT NULL,
+    ballnumber INT,
+    inningno INT,
+    overs DECIMAL(3,1),
+    outcome VARCHAR(10),
+    batter VARCHAR(100),
+    bowler VARCHAR(100),
+    score INT
+);
+
+INSERT INTO cricket_match VALUES(1,1,1,0.1,'0','Mohammed Shami','Devon Conway',0),
+(1,2,1,0.2,'1lb','Mohammed Shami','Devon Conway',1),(1,3,1,0.3,'0','Mohammed Shami','Ruturaj Gaikwad',0),
+(1,4,1,0.4,'1','Mohammed Shami','Ruturaj Gaikwad',1),(1,5,1,0.5,'0','Mohammed Shami','Devon Conway',0),
+(1,6,1,0.6,'0','Mohammed Shami','Devon Conway',0),(1,7,1,1.1,'4','Hardik Pandya','Ruturaj Gaikwad',4),
+(1,8,1,1.2,'0','Hardik Pandya','Ruturaj Gaikwad',0),(1,9,1,1.3,'4','Hardik Pandya','Ruturaj Gaikwad',4),
+(1,10,1,1.4,'1','Hardik Pandya','Ruturaj Gaikwad',1),(1,11,1,1.5,'1','Hardik Pandya','Devon Conway',1),
+(1,12,1,1.6,'1','Hardik Pandya','Ruturaj Gaikwad',1),(1,13,2,2.1,'1','Ruturaj Gaikwad','Mohammed Shami',1),
+(1,14,2,2.2,'w','Devon Conway','Mohammed Shami',0),(1,15,2,2.3,'0','Moeen Ali','Mohammed Shami',0),
+(1,16,2,2.4,'0','Moeen Ali','Mohammed Shami',0),(1,17,2,2.5,'0','Moeen Ali','Mohammed Shami',0),
+(1,18,2,2.6,'0','Moeen Ali','Mohammed Shami',0),(1,19,2,3.1,'6','Ruturaj Gaikwad','Josh Little',6),
+(1,20,2,3.2,'4','Ruturaj Gaikwad','Josh Little',4),(1,21,2,3.3,'1','Ruturaj Gaikwad','Josh Little',1),
+(1,22,2,3.4,'0','Moeen Ali','Josh Little',0),(1,23,2,3.5,'4','Moeen Ali','Josh Little',4),
+(1,24,2,3.6,'0','Moeen Ali','Josh Little',0),(2,1,1,4.1,'0','Mohammed Shami','Ruturaj Gaikwad',0),
+(2,2,1,4.2,'1','Mohammed Shami','Ruturaj Gaikwad',1),(2,3,1,4.3,'4','Mohammed Shami','Moeen Ali',4),
+(2,4,1,4.4,'1nb','Mohammed Shami','Moeen Ali',1),(2,5,1,4.4,'6','Mohammed Shami','Moeen Ali',6),
+(2,6,1,4.5,'4','Mohammed Shami','Moeen Ali',4),(2,7,1,4.6,'1','Mohammed Shami','Moeen Ali',1),
+(2,8,1,5.1,'0','Rashid Khan','Moeen Ali',0),(2,9,1,5.2,'0','Rashid Khan','Moeen Ali',0),
+(2,10,1,5.3,'0','Rashid Khan','Moeen Ali',0),(2,11,1,5.4,'4','Rashid Khan','Moeen Ali',4),
+(2,12,1,5.5,'w','Rashid Khan','Moeen Ali',0),(2,13,1,5.6,'1','Rashid Khan','Ben S',1),
+(2,14,2,6.1,'0','Ben S','Hardik Pandya',0),(2,15,2,6.2,'1','Ben S','Hardik Pandya',1),
+(2,16,2,6.3,'6','Ruturaj Gaikwad','Hardik Pandya',6),(2,17,2,6.4,'6','Ruturaj Gaikwad','Hardik Pandya',6),
+(2,18,2,6.5,'0','Ruturaj Gaikwad','Hardik Pandya',0),(2,19,2,6.6,'0','Ruturaj Gaikwad','Hardik Pandya',0),
+(2,20,2,7.1,'1','Ben S','Rashid Khan',1),(2,21,2,7.2,'1','Ruturaj Gaikwad','Rashid Khan',1),
+(2,22,2,7.3,'4','Ben S','Rashid Khan',4),(2,23,2,7.4,'w','Ben S','Rashid Khan',0),
+(2,24,2,7.5,'1','Ambati Rayudu','Rashid Khan',1),(2,25,2,7.6,'1','Ruturaj Gaikwad','Rashid Khan',1),
+(3,1,1,8.1,'6','Alzarri Joseph','Ruturaj Gaikwad',6),(3,2,1,8.2,'0','Alzarri Joseph','Ruturaj Gaikwad',0),
+(3,3,1,8.3,'0','Alzarri Joseph','Ruturaj Gaikwad',0),(3,4,1,8.4,'6','Alzarri Joseph','Ruturaj Gaikwad',6),
+(3,5,1,8.5,'0','Alzarri Joseph','Ruturaj Gaikwad',0),(3,6,1,8.6,'6','Alzarri Joseph','Ruturaj Gaikwad',6),
+(3,7,1,9.1,'0','Rashid Khan','Brett Lee',0),(3,8,1,9.2,'1','Rashid Khan','Brett Lee',1),
+(3,9,1,9.3,'1','Rashid Khan','Ruturaj Gaikwad',1),(3,10,1,9.4,'1','Rashid Khan','Brett Lee',1),
+(3,11,1,9.5,'0','Rashid Khan','Ruturaj Gaikwad',0),(3,12,1,9.6,'0','Rashid Khan','Ruturaj Gaikwad',0),
+(3,13,2,10.1,'0','Ambati Rayudu','Josh Little',0),(3,14,2,10.2,'0','Ambati Rayudu','Josh Little',0),
+(3,15,2,10.3,'0','Ambati Rayudu','Josh Little',0),(3,16,2,10.4,'1','Ambati Rayudu','Josh Little',1),
+(3,17,2,10.5,'0','Ruturaj Gaikwad','Josh Little',0),(3,18,2,10.6,'6','Ruturaj Gaikwad','Josh Little',6),
+(3,19,2,11.1,'1','Ambati Rayudu','Yash Dayal',1),(3,20,2,11.2,'0','Ruturaj Gaikwad','Yash Dayal',0),
+(3,21,2,11.3,'6','Ruturaj Gaikwad','Yash Dayal',6),(3,22,2,11.4,'0','Ruturaj Gaikwad','Yash Dayal',0),
+(3,23,2,11.5,'1','Ruturaj Gaikwad','Yash Dayal',1),(3,24,2,11.6,'6','Ambati Rayudu','Yash Dayal',6),
+(4,1,1,12.1,'1','Josh Little','Ruturaj Gaikwad',1),(4,2,1,12.2,'1','Josh Little','Brett Lee',1),
+(4,3,1,12.3,'4','Josh Little','Ruturaj Gaikwad',4),(4,4,1,12.4,'1','Josh Little','Ruturaj Gaikwad',1),
+(4,5,1,12.5,'w','Josh Little','Brett Lee',0),(4,6,1,12.6,'0','Josh Little','Shivam Dube',0),
+(4,7,1,13.1,'1','Alzarri Joseph','Ruturaj Gaikwad',1),(4,8,1,13.2,'1','Alzarri Joseph','Shivam Dube',1),
+(4,9,1,13.3,'1','Alzarri Joseph','Ruturaj Gaikwad',1),(4,10,1,13.4,'0','Alzarri Joseph','Shivam Dube',0),
+(4,11,1,13.5,'0','Alzarri Joseph','Shivam Dube',0),(4,12,1,13.6,'1','Alzarri Joseph','Shivam Dube',1),
+(4,13,2,14.1,'1','Shivam Dube','Hardik Pandya',1),(4,14,2,14.2,'1','Ruturaj Gaikwad','Hardik Pandya',1),
+(4,15,2,14.3,'4lb','Shivam Dube','Hardik Pandya',4),(4,16,2,14.4,'1','Shivam Dube','Hardik Pandya',1),
+(4,17,2,14.5,'0','Ruturaj Gaikwad','Hardik Pandya',0),(4,18,2,14.6,'1','Ruturaj Gaikwad','Hardik Pandya',1),
+(4,19,2,15.1,'1','Ruturaj Gaikwad','Alzarri Joseph',1),(4,20,2,15.2,'0','Shivam Dube','Alzarri Joseph',0),
+(4,21,2,15.3,'1','Shivam Dube','Alzarri Joseph',1),(4,22,2,15.4,'1','Ruturaj Gaikwad','Alzarri Joseph',1),
+(4,23,2,15.5,'2','Shivam Dube','Alzarri Joseph',2),(4,24,2,15.6,'2','Shivam Dube','Alzarri Joseph',2);
+
+WITH CTE AS
+(
+SELECT BATTER AS PLAYER,MATCHID AS BATTING_MATCH_ID,NULL AS BOWLING_MATCH_ID FROM CRICKET_MATCH
+UNION 
+SELECT BOWLER AS PLAYER,NULL AS BATTING_MATCH_ID,MATCHID AS BOWLING_MATCH_ID FROM CRICKET_MATCH
+)
+SELECT PLAYER,COUNT(DISTINCT COALESCE(BATTING_MATCH_ID,BOWLING_MATCH_ID)) AS TOTAL_MATCHES_PLAYED
+,COUNT(BATTING_MATCH_ID) AS BATTING_MATCHES,COUNT(BOWLING_MATCH_ID) AS BOWLING_MATCHES_PLAYED
+FROM CTE
+GROUP BY PLAYER;
+
+--Q.NO:9
+-- Write an SQL query that, for each experience level, counts the total number of candidates
+-- and how many of them got a perfect score in each category which they were requested to solve tasks
+-- (a NULL means the candidate was not requested to solve a task in that category)
+
+create or replace table assessments
+(
+id int,
+experience int,
+sql int,
+algo int,
+bug_fixing int
+);
+
+insert into assessments values 
+(1,3,100,null,50),
+(2,5,null,100,100),
+(3,1,100,100,100),
+(4,5,100,50,null),
+(5,5,100,100,100);
+
+delete from assessments
+insert into assessments values 
+(1,2,null,null,null),
+(2,20,null,null,20),
+(3,7,100,null,100),
+(4,3,100,50,null),
+(5,2,40,100,100);
+
+
+WITH CTE AS
+(
+SELECT ID,EXPERIENCE,SQL AS SCORE,'SQL' AS SUBJECT FROM ASSESSMENTS
+UNION ALL
+SELECT ID,EXPERIENCE,ALGO AS SCORE,'ALGO' AS SUBJECT FROM ASSESSMENTS
+UNION ALL
+SELECT ID,EXPERIENCE,BUG_FIXING AS SCORE,'BUG_FIXING' AS SUBJECT FROM ASSESSMENTS
+)
+SELECT EXPERIENCE,SUM(PERFECT_SCORE) AS MAX_SCORE_STUDENTS,COUNT(*) AS TOTAL_STUDENTS
+FROM
+(SELECT ID,EXPERIENCE,
+CASE WHEN SUM(CASE WHEN SCORE IS NULL OR SCORE=100 THEN 1 ELSE 0 END)=
+(SELECT COUNT(DISTINCT SUBJECT) FROM CTE) THEN 1 ELSE 0 END AS PERFECT_SCORE,
+FROM CTE 
+GROUP BY ID, EXPERIENCE) A
+GROUP BY EXPERIENCE;
+
+
+--Q.NO:10
+--You are given a transaction table, which records transactions between sellers and buyers. 
+--The structure of the table is as follows:
+--Transaction_ID (INT), Customer_ID (INT), Amount (INT), Date (timestamp)
+--Every successful transaction will have two row entries into the table with two different 
+--transaction_id but in ascending order sequence, the first one for the seller where their 
+--customer_id will be registered, and the second one for the buyer where their customer_id will 
+--be registered. The amount and date_time for both will however be the same.
+--Write an SQL query to find the 5 top seller-buyer combinations who have had maximum 
+--transactions between them.
+--Condition - Please disqualify the sellers who have acted as buyers and also the buyers who 
+--have acted as sellers for this condition.
+
+CREATE TABLE transactions (
+    transaction_id INT PRIMARY KEY,
+    customer_id INT,
+    amount INT,
+    tran_Date datetime
+);
+
+delete from Transactions;
+INSERT INTO Transactions VALUES (1, 101, 500, '2025-01-01 10:00:01');
+INSERT INTO Transactions VALUES (2, 201, 500, '2025-01-01 10:00:01');
+INSERT INTO Transactions VALUES (3, 102, 300, '2025-01-02 00:50:01');
+INSERT INTO Transactions VALUES (4, 202, 300, '2025-01-02 00:50:01');
+INSERT INTO Transactions VALUES (5, 101, 700, '2025-01-03 06:00:01');
+INSERT INTO Transactions VALUES (6, 202, 700, '2025-01-03 06:00:01');
+INSERT INTO Transactions VALUES (7, 103, 200, '2025-01-04 03:00:01');
+INSERT INTO Transactions VALUES (8, 203, 200, '2025-01-04 03:00:01');
+INSERT INTO Transactions VALUES (9, 101, 400, '2025-01-05 00:10:01');
+INSERT INTO Transactions VALUES (10, 201, 400, '2025-01-05 00:10:01');
+INSERT INTO Transactions VALUES (11, 101, 500, '2025-01-07 10:10:01');
+INSERT INTO Transactions VALUES (12, 201, 500, '2025-01-07 10:10:01');
+INSERT INTO Transactions VALUES (13, 102, 200, '2025-01-03 10:50:01');
+INSERT INTO Transactions VALUES (14, 202, 200, '2025-01-03 10:50:01');
+INSERT INTO Transactions VALUES (15, 103, 500, '2025-01-01 11:00:01');
+INSERT INTO Transactions VALUES (16, 101, 500, '2025-01-01 11:00:01');
+INSERT INTO Transactions VALUES (17, 203, 200, '2025-11-01 11:00:01');
+INSERT INTO Transactions VALUES (18, 201, 200, '2025-11-01 11:00:01');
+
+WITH CTE1 AS
+(
+SELECT TRANSACTION_ID,CUSTOMER_ID AS SELLER_ID,
+LEAD(CUSTOMER_ID,1) OVER(ORDER BY TRANSACTION_ID) AS BUYER_ID,
+AMOUNT,TRAN_DATE
+FROM TRANSACTIONS
+)
+,CTE2 AS
+(
+SELECT * FROM CTE1
+WHERE TRANSACTION_ID%2=1
+),
+CTE3 AS
+(
+SELECT SELLER_ID,BUYER_ID,COUNT(*) AS NO_OF_TRANSACTIONS
+FROM CTE2
+GROUP BY SELLER_ID,BUYER_ID
+)
+,CTE4 AS
+(
+SELECT SELLER_ID AS FRAUDS FROM CTE3
+INTERSECT
+SELECT BUYER_ID FROM CTE3
+)
+SELECT TOP 5 SELLER_ID,BUYER_ID,NO_OF_TRANSACTIONS FROM CTE3
+WHERE SELLER_ID NOT IN(SELECT FRAUDS FROM CTE4)
+AND BUYER_ID NOT IN(SELECT FRAUDS FROM CTE4);
+
+
+--Q.NO:11
+--Write SQL queries that compute the following. Keep in mind that your queries should compute the correct result on any legal instance of this database.
+--(a) Co-investors:
+--Compute all pairs of politicians (pname1, pname2) such that pname1 invests in some company, and pname2 invests in a subsidiary of that company.
+--Sort your results by pname1, breaking ties by pname2.
+--For the given instance, you should return (Don, Hil) because Don invests in C1, Hil invests in C3, and C3 is a subsidiary of C1.
+--You should not return (Don, Ron), who both invest in C1, because we don't consider a company to be a subsidiary of itself.
+
+
+CREATE TABLE Politician (
+    pname VARCHAR(10) PRIMARY KEY,
+    party CHAR(1)
+);
+
+CREATE TABLE Company (
+    cname VARCHAR(10) PRIMARY KEY,
+    revenue INT
+);
+
+CREATE TABLE Invested (
+    pname VARCHAR(10),
+    cname VARCHAR(10)
+);
+
+CREATE TABLE Subsidiary (
+    parent VARCHAR(10),
+    child VARCHAR(10)
+);
+
+INSERT INTO Politician (pname, party) VALUES
+('Don', 'R'),
+('Ron', 'R'),
+('Hil', 'D'),
+('Bill', 'D');
+
+
+INSERT INTO Company (cname, revenue) VALUES
+('C1', 110),
+('C2', 30),
+('C3', 50),
+('C4', 250),
+('C5', 75),
+('C6', 15);
+
+
+INSERT INTO Invested (pname, cname) VALUES
+('Don', 'C1'),
+('Don', 'C4'),
+('Ron', 'C1'),
+('Hil', 'C3');
+
+
+INSERT INTO Subsidiary (parent, child) VALUES
+('C1', 'C2'),
+('C2', 'C3'),
+('C2', 'C5'),
+('C4', 'C6');
+
+
+WITH CTE AS
+(
+SELECT PARENT,CHILD FROM SUBSIDIARY
+UNION ALL
+SELECT C.PARENT,S.CHILD FROM CTE C
+JOIN SUBSIDIARY S ON C.CHILD=S.PARENT
+)
+SELECT P.PNAME,D.PNAME FROM CTE
+INNER JOIN INVESTED P ON CTE.PARENT=P.CNAME
+INNER JOIN INVESTED D ON CTE.CHILD=D.CNAME; 
+
+
+--Q.NO:12
+--For the given two input tables, you're asked to write a SQL solution to generate either one of the expected outputs.
+--The first table provides market-wise sales.
+--The second table provides the hierarchical relationship of the individual markets (top to bottom).
+--Measure "sales" is additive in nature.
+--Expected output should be flattened and can be easily aggregated at the required level of the hierarchy.
+
+
+CREATE TABLE input_table_1 (
+    Market VARCHAR(50),
+    Sales INT
+);
+
+
+INSERT INTO input_table_1 (Market, Sales) VALUES
+('India', 100),
+('Maharashtra', 20),
+('Telangana', 18),
+('Karnataka', 22),
+('Gujarat', 25),
+('Delhi', 12),
+('Nagpur', 8),
+('Mumbai', 10),
+('Agra', 5),
+('Hyderabad', 9),
+('Bengaluru', 12),
+('Hubli', 12),
+('Bhopal', 5);
+
+
+CREATE TABLE input_table_2 (
+    Country VARCHAR(50),
+    State VARCHAR(50),
+    City VARCHAR(50)
+);
+
+
+delete from input_table_2;
+INSERT INTO input_table_2 (Country, State, City) VALUES
+('India', 'Maharashtra', 'Nagpur'),
+('India', 'Maharashtra', 'Mumbai'),
+('India', 'Maharashtra', 'Akola'),
+('India', 'Telangana', 'Hyderabad'),
+('India', 'Karnataka', 'Bengaluru'),
+('India', 'Karnataka', 'Hubli'),
+('India', 'Gujarat', 'Ahmedabad'),
+('India', 'Gujarat', 'Vadodara'),
+('India', 'UP', 'Agra'),
+('India', 'UP', 'Mirzapur'),
+('India', 'Delhi', NULL), 
+('India', 'Orissa', NULL);
+
+WITH CITY_SALES AS
+(
+SELECT T2.COUNTRY,T2.STATE,T2.CITY,T1.SALES
+FROM INPUT_TABLE_2 T2 INNER JOIN INPUT_TABLE_1 T1
+ON T2.CITY=T1.MARKET
+),
+CITY_LEVEL_STATE_SALES AS
+(
+SELECT STATE,SUM(SALES) AS SALES
+FROM CITY_SALES
+GROUP BY STATE
+),
+STATE_SALES AS
+(
+SELECT DISTINCT T2.COUNTRY,T2.STATE,IFNULL(T1.SALES,0) AS SALES
+FROM INPUT_TABLE_2 T2 LEFT JOIN INPUT_TABLE_1 T1 ON
+T2.STATE=T1.MARKET
+),
+STATE_LEVEL_DUP_SALES AS
+(
+SELECT SS.COUNTRY,SS.STATE,NULL AS CITY,SS.SALES-IFNULL(CSS.SALES,0) AS SALES
+FROM STATE_SALES SS LEFT JOIN CITY_LEVEL_STATE_SALES CSS
+ON SS.STATE=CSS.STATE
+WHERE SS.SALES!=IFNULL(CSS.SALES,0)
+),CITY_AND_STATE_LEVEL_SALES
+AS(
+SELECT COUNTRY,STATE,CITY,SALES FROM CITY_SALES
+UNION ALL
+SELECT COUNTRY,STATE,NULL AS CITY,SALES FROM STATE_LEVEL_DUP_SALES
+)
+SELECT * FROM CITY_AND_STATE_LEVEL_SALES
+UNION ALL
+SELECT A.COUNTRY,NULL AS STATE,NULL AS CITY,A.SALES-B.SALES AS SALES
+FROM
+(
+SELECT DISTINCT T2.COUNTRY,T1.SALES
+FROM INPUT_TABLE_2 T2 INNER JOIN INPUT_TABLE_1 T1 ON 
+T2.COUNTRY=T1.MARKET) A 
+INNER JOIN (SELECT COUNTRY,SUM(SALES) AS SALES FROM CITY_AND_STATE_LEVEL_SALES GROUP BY COUNTRY) B
+ON A.COUNTRY=B.COUNTRY;
+
+
+
+--Q.NO:13
+--Write an SQL query that finds the shortest time in which this journey can occur. Return the difference between the time of departure from New York and the time of arrival in Tokyo in minutes. If such a journey is impossible, return NULL.
+
+CREATE TABLE airports (
+    port_code VARCHAR(10) PRIMARY KEY,
+    city_name VARCHAR(100)
+);
+
+CREATE TABLE flights (
+    flight_id varchar (10),
+    start_port VARCHAR(10),
+    end_port VARCHAR(10),
+    start_time datetime,
+    end_time datetime
+);
+
+delete from airports;
+INSERT INTO airports (port_code, city_name) VALUES
+('JFK', 'New York'),
+('LGA', 'New York'),
+('EWR', 'New York'),
+('LAX', 'Los Angeles'),
+('ORD', 'Chicago'),
+('SFO', 'San Francisco'),
+('HND', 'Tokyo'),
+('NRT', 'Tokyo'),
+('KIX', 'Osaka');
+
+delete from flights;
+INSERT INTO flights VALUES
+(1, 'JFK', 'HND', '2025-06-15 06:00', '2025-06-15 18:00'),
+(2, 'JFK', 'LAX', '2025-06-15 07:00', '2025-06-15 10:00'),
+(3, 'LAX', 'NRT', '2025-06-15 10:00', '2025-06-15 22:00'),
+(4, 'JFK', 'LAX', '2025-06-15 08:00', '2025-06-15 11:00'),
+(5, 'LAX', 'KIX', '2025-06-15 11:30', '2025-06-15 22:00'),
+(6, 'LGA', 'ORD', '2025-06-15 09:00', '2025-06-15 12:00'),
+(7, 'ORD', 'HND', '2025-06-15 11:30', '2025-06-15 23:30'),
+(8, 'EWR', 'SFO', '2025-06-15 09:00', '2025-06-15 12:00'),
+(9, 'LAX', 'HND', '2025-06-15 13:00', '2025-06-15 23:00'),
+(10, 'KIX', 'NRT', '2025-06-15 08:00', '2025-06-15 10:00');
+
+
+WITH CTE1 AS
+(
+SELECT F.*,A1.CITY_NAME AS START_CITY,A2.CITY_NAME AS END_CITY
+FROM FLIGHTS F INNER JOIN AIRPORTS A1
+ON A1.PORT_CODE=F.START_PORT
+INNER JOIN AIRPORTS A2 ON A2.PORT_CODE=F.END_PORT
+),
+DIRECT_FLIGHTS AS
+(
+SELECT START_CITY, NULL AS MIDDLE_CITY,END_CITY,FLIGHT_ID,DATEDIFF(MINUTE,START_TIME,END_TIME) AS TIME_TAKEN
+FROM CTE1
+WHERE START_CITY='New York' AND END_CITY='Tokyo'
+)
+SELECT A.START_CITY AS TRIP_START_CITY,A.END_CITY AS MIDDLE_CITY,B.END_CITY AS TRIP_END_CITY,
+CONCAT_WS(',',A.FLIGHT_ID,B.FLIGHT_ID) AS FLIGHT_ID,DATEDIFF(MINUTE,A.START_TIME,B.END_TIME) AS DURATION
+FROM 
+(
+SELECT * FROM CTE1 WHERE START_CITY='New York'
+) A
+INNER JOIN
+(
+SELECT * FROM CTE1 WHERE END_CITY='Tokyo'
+) B
+ON A.END_CITY=B.START_CITY
+WHERE B.START_TIME>=A.END_TIME
+UNION ALL
+SELECT * FROM DIRECT_FLIGHTS;
+
+--Q.NO:14
+--write a query to find num of gold medals won per swimmer for swimmer who won only gold medals
+
+CREATE or replace TABLE events1 (
+ID int,
+event varchar(255),
+YEAR INt,
+GOLD varchar(255),
+SILVER varchar(255),
+BRONZE varchar(255)
+);
+
+delete from events;
+
+INSERT INTO events1 VALUES (1,'100m',2016, 'Amthhew Mcgarray','donald','barbara');
+INSERT INTO events1 VALUES (2,'200m',2016, 'Nichole','Alvaro Eaton','janet Smith');
+INSERT INTO events1 VALUES (3,'500m',2016, 'Charles','Nichole','Susana');
+INSERT INTO events1 VALUES (4,'100m',2016, 'Ronald','maria','paula');
+INSERT INTO events1 VALUES (5,'200m',2016, 'Alfred','carol','Steven');
+INSERT INTO events1 VALUES (6,'500m',2016, 'Nichole','Alfred','Brandon');
+INSERT INTO events1 VALUES (7,'100m',2016, 'Charles','Dennis','Susana');
+INSERT INTO events1 VALUES (8,'200m',2016, 'Thomas','Dawn','catherine');
+INSERT INTO events1 VALUES (9,'500m',2016, 'Thomas','Dennis','paula');
+INSERT INTO events1 VALUES (10,'100m',2016, 'Charles','Dennis','Susana');
+INSERT INTO events1 VALUES (11,'200m',2016, 'jessica','Donald','Stefeney');
+INSERT INTO events1 VALUES (12,'500m',2016,'Thomas','Steven','Catherine');
+
+
+WITH CTE AS 
+(
+SELECT GOLD AS PLAYER,'GOLD' AS MEDAL_TYPE FROM EVENTS1
+UNION ALL SELECT SILVER AS PLAYER,'SILVER' AS MEDAL_TYPE FROM EVENTS1
+UNION ALL SELECT BRONZE AS PLAYER ,'BRONZE' AS MEDAL_TYPE FROM EVENTS1
+)
+SELECT PLAYER,COUNT(PLAYER) AS NO_OF_GOLD
+FROM CTE
+GROUP BY PLAYER
+HAVING COUNT(DISTINCT MEDAL_TYPE)=1 AND MAX(MEDAL_TYPE)='GOLD'
+ORDER BY PLAYER;
+
+--Q.NO:15
+--Write a sql query to find busines date between create date and resovled date by exculding weekends and holidays.and also dont include public holidays if they are weekends.
+
+create table tickets
+(
+ticket_id varchar(10),
+create_date date,
+resolved_date date
+);
+
+delete from tickets;
+
+insert into tickets values
+(1,'2022-08-01','2022-08-03')
+,(2,'2022-08-01','2022-08-12')
+,(3,'2022-08-01','2022-08-16');
+
+create table holidays
+(
+holiday_date date
+,reason varchar(100)
+);
+
+delete from holidays;
+
+insert into holidays values
+('2022-08-11','Rakhi'),('2022-08-15','Independence day');
+
+--SELECT TICKET_ID,CREATE_DATE,RESOLVED_DATE ,
+--DATEDIFF(DAYS,CREATE_DATE,RESOLVED_DATE)-DATEDIFF(WEEK,CREATE_DATE,RESOLVED_DATE) AS TOTAL_WITHOUTPUBHOLI
+--FROM TICKETS;
+
+SELECT TICKET_ID,CREATE_DATE,RESOLVED_DATE,DATEDIFF(DAYS,CREATE_DATE,RESOLVED_DATE) AS ACTUAL_DAYS,
+DATEDIFF(DAYS,CREATE_DATE,RESOLVED_DATE)-2*DATEDIFF(WEEK,CREATE_DATE,RESOLVED_DATE)-COUNT(HOLIDAY_DATE) AS BUSSINES_DAYS 
+FROM TICKETS T LEFT JOIN HOLIDAYS H
+ON HOLIDAY_DATE BETWEEN CREATE_DATE AND RESOLVED_DATE
+AND DAYNAME(HOLIDAY_DATE) NOT IN ('Sat','Sun')
+GROUP BY TICKET_ID,CREATE_DATE,RESOLVED_DATE
+ORDER BY TICKET_ID;
+
+--Q.NO:16
+--Write a sql query to find total number of people present inside the hospital
+
+create table hospital ( emp_id int
+,action varchar(10)
+,time datetime);
+
+insert into hospital values ('1', 'in', '2019-12-22 09:00:00');
+insert into hospital values ('1', 'out', '2019-12-22 09:15:00');
+insert into hospital values ('2', 'in', '2019-12-22 09:00:00');
+insert into hospital values ('2', 'out', '2019-12-22 09:15:00');
+insert into hospital values ('2', 'in', '2019-12-22 09:30:00');
+insert into hospital values ('3', 'out', '2019-12-22 09:00:00');
+insert into hospital values ('3', 'in', '2019-12-22 09:15:00');
+insert into hospital values ('3', 'out', '2019-12-22 09:30:00');
+insert into hospital values ('3', 'in', '2019-12-22 09:45:00');
+insert into hospital values ('4', 'in', '2019-12-22 09:45:00');
+insert into hospital values ('5', 'out', '2019-12-22 09:40:00');
+
+WITH CTE AS
+(
+SELECT EMP_ID,
+MAX(CASE WHEN ACTION='in' THEN TIME END )AS IN_TIME,
+MAX(CASE WHEN ACTION='out' THEN TIME END )AS OUT_TIME
+FROM HOSPITAL
+GROUP BY EMP_ID
+)
+SELECT EMP_ID FROM CTE 
+WHERE IN_TIME>OUT_TIME OR OUT_TIME IS NULL;
+
+
+
+WITH CTE AS
+(
+SELECT EMP_ID, MAX(TIME) AS MAX_LATEST_TIME FROM HOSPITAL
+GROUP BY EMP_ID
+),
+LATEST_IN_TIME AS
+(
+SELECT EMP_ID,MAX(TIME) AS LATEST_IN FROM HOSPITAL
+WHERE ACTION='in'
+GROUP BY EMP_ID
+)
+SELECT C. EMP_ID
+FROM CTE C JOIN LATEST_IN_TIME LIT ON C.EMP_ID=LIT.EMP_ID
+AND C.MAX_LATEST_TIME=LIT.LATEST_IN;
+
+
+--Q.NO:17
+--Write a sql query to find
+--Find the room types that are searched most number of times.Output the room type alongside the number of searches for it.If the filter for room types has more than one room type, consider each unique room type as a separate row.Sort the result based on the number of searches in descending order.
+
+create table airbnb_searches 
+(
+user_id int,
+date_searched date,
+filter_room_types varchar(200)
+);
+
+delete from airbnb_searches;
+insert into airbnb_searches values
+(1,'2022-01-01','entire home,private room')
+,(2,'2022-01-02','entire home,shared room')
+,(3,'2022-01-02','private room,shared room')
+,(4,'2022-01-03','private room')
+;
+
+--SNOWFLAKE SOLUTION:
+
+SELECT TRIM(VALUE::STRING) AS VALUE,COUNT(*) AS NO_OF_SEARCHES
+FROM AIRBNB_SEARCHES,LATERAL FLATTEN(INPUT => SPLIT(FILTER_ROOM_TYPES,','))
+GROUP BY VALUE
+ORDER BY NO_OF_SEARCHES DESC;
+
+--SQL SOLUTION
+SELECT value AS room_type, COUNT(1) AS no_of_searches 
+FROM airbnb_searches
+CROSS APPLY STRING_SPLIT(filter_room_types, ',')
+GROUP BY value
+ORDER BY no_of_searches DESC;
+
+--Q.NO:18
+--Write a sql query to find whose salary is same in same department
+
+CREATE TABLE emp_salary
+(
+    emp_id INTEGER  NOT NULL,
+    name NVARCHAR(20)  NOT NULL,
+    salary NVARCHAR(30),
+    dept_id INTEGER
+);
+
+
+INSERT INTO emp_salary
+(emp_id, name, salary, dept_id)
+VALUES(101, 'sohan', '3000', '11'),
+(102, 'rohan', '4000', '12'),
+(103, 'mohan', '5000', '13'),
+(104, 'cat', '3000', '11'),
+(105, 'suresh', '4000', '12'),
+(109, 'mahesh', '7000', '12'),
+(108, 'kamal', '8000', '11');
+
+--MY_SOL
+
+SELECT E1.*
+FROM EMP_SALARY E1
+JOIN EMP_SALARY E2
+ON E1.DEPT_ID=E2.DEPT_ID AND E1.SALARY=E2.SALARY
+WHERE E1.EMP_ID!=E2.EMP_ID;
+
+--ANKIT_SOL:
+
+WITH CTE AS
+(
+SELECT DEPT_ID,SALARY
+FROM EMP_SALARY
+GROUP BY DEPT_ID,SALARY
+HAVING COUNT(1)>1
+)
+SELECT E.* FROM EMP_SALARY E
+INNER JOIN CTE ON
+CTE.DEPT_ID=E.DEPT_ID AND CTE.SALARY=E.SALARY;
+
+
+--Q.NO:19
+--Write a sql query to find 
+--For every customer that bought Photoshop, return a list of the customers, and the total spent on all the products except for Photoshop products. Sort your answer by customer ids in ascending order."
+
+CREATE TABLE adobe_transactions (
+    customer_id INTEGER,
+    product TEXT,
+    revenue INTEGER
+);
+
+INSERT INTO adobe_transactions (customer_id, product, revenue) VALUES
+(1, 'Photoshop', 200),
+(1, 'Illustrator', 150),
+(1, 'Premiere', 100),
+(2, 'Photoshop', 250),
+(2, 'Lightroom', 120),
+(3, 'Illustrator', 180),
+(3, 'Premiere', 130),
+(4, 'Photoshop', 300),
+(4, 'After Effects', 200);
+
+
+SELECT CUSTOMER_ID,SUM(REVENUE) AS REVENUE FROM ADOBE_TRANSACTIONS A
+WHERE EXISTS
+(
+SELECT 1 FROM ADOBE_TRANSACTIONS B
+WHERE B.PRODUCT='Photoshop' AND A.CUSTOMER_ID=B.CUSTOMER_ID
+)
+AND PRODUCT!='Photoshop'
+GROUP BY CUSTOMER_ID
+ORDER BY CUSTOMER_ID;
+
+
+--Q.NO:20
+--Assume you are given the table below containing information on user purchases. Write a query to obtain the number of users who purchased the same product on two or more different days. Output the number of unique users."
+
+CREATE  OR REPLACE TABLE purchases (
+    user_id INT,
+    product_id INT,
+    quantity INT,
+    purchase_date DATETIME
+);
+
+
+INSERT INTO purchases (user_id, product_id, quantity, purchase_date)
+VALUES 
+(101, 3223, 2, '2022-04-10 10:15:00'),
+(827, 1435, 1, '2022-04-12 16:45:30'),
+(536, 3585, 3, '2022-05-01 11:20:10'),
+(101, 3585, 7, '2022-05-03 09:00:00'),
+(999, 1435, 4, '2022-05-05 13:30:45'),
+(827, 3223, 8, '2022-06-01 14:10:00'),
+(536, 3585, 12, '2022-06-10 17:25:00'),
+(101, 1435, 6, '2022-06-15 08:50:00');
+
+SELECT USER_ID,PRODUCT_ID,COUNT(PURCHASE_DATE::DATE) AS CNT
+FROM PURCHASES
+GROUP BY USER_ID,PRODUCT_ID
+HAVING COUNT(PURCHASE_DATE::DATE)>1;
+
+
+--Q.NO:21
+--Write a query to find the top 5 artists whose songs appear most frequently in the Top 10 of the global_song_rank table. Display the top 5 artist names in ascending order, along with their song appearance ranking.
+
+CREATE TABLE artists (
+    artist_id INT PRIMARY KEY,
+    artist_name VARCHAR(100),
+    label_owner VARCHAR(100)
+);
+
+INSERT INTO artists (artist_id, artist_name, label_owner)
+VALUES
+(101, 'Ed Sheeran', 'Warner Music Group'),
+(120, 'Drake', 'Warner Music Group'),
+(125, 'Bad Bunny', 'Rimas Entertainment');
+
+CREATE TABLE songs (
+    song_id INT PRIMARY KEY,
+    artist_id INT,
+    name VARCHAR(100),
+    FOREIGN KEY (artist_id) REFERENCES artists(artist_id)
+);
+
+INSERT INTO songs (song_id, artist_id, name)
+VALUES
+(55511, 101, 'Perfect'),
+(45202, 101, 'Shape of You'),
+(22222, 120, 'One Dance'),
+(19960, 120, 'Hotline Bling');
+
+CREATE TABLE global_song_rank (
+    day INT,
+    song_id INT,
+    rank INT,
+    FOREIGN KEY (song_id) REFERENCES songs(song_id)
+);
+
+INSERT INTO global_song_rank (day, song_id, rank)
+VALUES
+(1, 45202, 5),
+(3, 45202, 2),
+(1, 19960, 3),
+(9, 19960, 15);
+
+SELECT A.ARTIST_ID,RN
+FROM(
+SELECT *,DENSE_RANK() OVER(ORDER BY NO_OF_APPERANCES DESC) AS RN
+FROM (
+SELECT S.ARTIST_ID,COUNT(1) AS NO_OF_APPERANCES
+FROM SONGS S JOIN
+GLOBAL_SONG_RANK GSK ON S.SONG_ID=GSK.SONG_ID
+WHERE RANK<=10
+GROUP BY S.ARTIST_ID) A )B INNER JOIN ARTISTS A ON A.ARTIST_ID=B.ARTIST_ID
+WHERE RN<=5;
+
+----------------
+CREATE OR REPLACE TABLE SCORES
+(
+SCORE INT
+);
+
+INSERT INTO SCORES VALUES (1),(2),(NULL),(3),(NULL);
+
+SELECT AVG(SCORE) FROM SCORES;
+
+CREATE OR REPLACE TABLE SCORES2
+(
+ID INT,
+SCORE INT
+);
+
+INSERT INTO SCORES2 VALUES (1,1),(2,2),(3,NULL),(4,3),(5,NULL);
+
+SELECT AVG(SCORE) FROM SCORES2
+GROUP BY ID;
+
+CREATE OR REPLACE TABLE SCORES3
+(
+ID INT,
+SCORE INT
+);
+
+INSERT INTO SCORES3 VALUES (1,1),(1,NULL),(1,4),(2,2),(2,NULL),(3,7),(3,NULL),(4,3),(5,NULL);
+
+SELECT ID, AVG(SCORE) FROM SCORES3
+GROUP BY ID;
+
+CREATE OR REPLACE TABLE SCORES4
+(
+ID INT,
+SCORE INT
+);
+
+INSERT INTO SCORES4 VALUES (NULL,1),(1,NULL),(1,4),(2,9),(2,NULL),(3,7),(NULL,NULL),(4,3),(5,NULL),(NULL,7);
+
+SELECT ID, AVG(SCORE) FROM SCORES4
+GROUP BY ID;
+
+
+
+--Q.NO:22
+--Write a sql query to find highest and lowest salary in each department
+
+
+create table employee 
+(
+emp_name varchar(10),
+dep_id int,
+salary int
+);
+
+delete from employee;
+
+insert into employee values 
+('Siva',1,30000),('Ravi',2,40000),('Prasad',1,50000),('Sai',2,20000);
+
+WITH CTE AS
+(
+SELECT *,ROW_NUMBER() OVER(PARTITION BY DEP_ID ORDER BY SALARY DESC,EMP_NAME) AS HIGH_RN
+,ROW_NUMBER() OVER(PARTITION BY DEP_ID ORDER BY SALARY,EMP_NAME) AS LOW_RN
+FROM EMPLOYEE
+)
+SELECT DEP_ID,
+MAX(CASE WHEN HIGH_RN=1 THEN EMP_NAME END) MAX_SALARY,
+MIN(CASE WHEN LOW_RN=1 THEN EMP_NAME END) MIN_SALARY
+FROM CTE
+GROUP BY DEP_ID;
+
+
+--Q.NO:23
+--"Write a query to get start time and end time of each call from below 2 tables. Also create a column of call duration in minutes. Please do take into account that there will be multiple calls from one phone number and each entry in start table has a corresponding entry in end table."
+
+create table call_start_logs
+(
+phone_number varchar(10),
+start_time datetime
+);
+
+insert into call_start_logs values
+('PN1','2022-01-01 10:20:00'),('PN1','2022-01-01 16:25:00'),('PN2','2022-01-01 12:30:00')
+,('PN3','2022-01-02 10:00:00'),('PN3','2022-01-02 12:30:00'),('PN3','2022-01-03 09:20:00');
+
+
+create table call_end_logs
+(
+phone_number varchar(10),
+end_time datetime
+);
+
+insert into call_end_logs values
+('PN1','2022-01-01 10:45:00'),('PN1','2022-01-01 17:05:00'),('PN2','2022-01-01 12:55:00')
+,('PN3','2022-01-02 10:20:00'),('PN3','2022-01-02 12:50:00'),('PN3','2022-01-03 09:40:00');
+
+
+--USING JOINS
+
+SELECT A.PHONE_NUMBER,START_TIME,END_TIME,DATEDIFF(MINUTE,START_TIME,END_TIME) AS DURATION
+FROM 
+(SELECT *,ROW_NUMBER() OVER(PARTITION BY PHONE_NUMBER ORDER BY START_TIME) AS START_RN FROM CALL_START_LOGS) A
+INNER JOIN
+(SELECT *,ROW_NUMBER() OVER(PARTITION BY PHONE_NUMBER ORDER BY END_TIME) AS END_RN FROM CALL_END_LOGS) B
+ON A.PHONE_NUMBER=B.PHONE_NUMBER AND A.START_RN=B.END_RN;
+
+
+--USING UNION
+
+SELECT PHONE_NUMBER,MIN(CALL_TIME) AS START_TIME,MAX(CALL_TIME) AS END_TIME,DATEDIFF(MINUTE,START_TIME,END_TIME) AS DURATION
+FROM 
+(SELECT PHONE_NUMBER,START_TIME AS CALL_TIME,ROW_NUMBER() OVER(PARTITION BY PHONE_NUMBER ORDER BY START_TIME) AS START_RN FROM CALL_START_LOGS 
+UNION ALL
+SELECT PHONE_NUMBER,END_TIME AS CALL_TIME,ROW_NUMBER() OVER(PARTITION BY PHONE_NUMBER ORDER BY END_TIME) AS END_RN FROM CALL_END_LOGS)
+GROUP BY PHONE_NUMBER,START_RN;
+
+
+--Q.NO:24
+--Write a sql query to solve the problem based on formula row
+
+create table input (
+id int,
+formula varchar(10),
+value int
+);
+
+insert into input values (1,'1+4',10),(2,'2+1',5),(3,'3-2',40),(4,'4-1',20);
+
+WITH CTE AS
+(
+SELECT ID,FORMULA,VALUE,LEFT(FORMULA,1) AS ID1,RIGHT(FORMULA,1) AS ID2,SUBSTR(FORMULA,2,1) AS O
+FROM INPUT
+)
+SELECT C.*,IP1.VALUE,IP2.VALUE,C.O,
+CASE WHEN C.O='+' THEN IP1.VALUE+IP2.VALUE ELSE IP1.VALUE-IP2.VALUE END AS NEW_VAL
+FROM CTE C JOIN CTE IP1 ON C.ID=IP1.ID1
+JOIN CTE IP2 ON C.ID=IP2.ID2;
+
+--Q.NO:25
+--Write a sql query to find 
+--Condition: If Criteria1 and Criteria2 both are 'Y' and a minimum of 2 team members should have 'Y', then the output should be 'Y'; else 'N'.
+
+create table Ameriprise_LLC
+(
+teamID varchar(2),
+memberID varchar(10),
+Criteria1 varchar(1),
+Criteria2 varchar(1)
+);
+
+
+insert into Ameriprise_LLC values 
+('T1','T1_mbr1','Y','Y'),
+('T1','T1_mbr2','Y','Y'),
+('T1','T1_mbr3','Y','Y'),
+('T1','T1_mbr4','Y','Y'),
+('T1','T1_mbr5','Y','N'),
+('T2','T2_mbr1','Y','Y'),
+('T2','T2_mbr2','Y','N'),
+('T2','T2_mbr3','N','Y'),
+('T2','T2_mbr4','N','N'),
+('T2','T2_mbr5','N','N'),
+('T3','T3_mbr1','Y','Y'),
+('T3','T3_mbr2','Y','Y'),
+('T3','T3_mbr3','N','Y'),
+('T3','T3_mbr4','N','Y'),
+('T3','T3_mbr5','Y','N');
+
+SELECT TEAMID,MEMBERID,
+SUM(CASE WHEN CRITERIA1='Y' AND CRITERIA2='Y' THEN 1 ELSE 0 END) OVER(PARTITION BY TEAMID) AS ELIGIBLE_COUNT,
+CASE WHEN CRITERIA1='Y' AND CRITERIA2='Y' AND SUM(CASE WHEN CRITERIA1='Y' AND CRITERIA2='Y' THEN 1 ELSE 0 END) OVER(PARTITION BY TEAMID) >=2 THEN 'Y' ELSE 'N' END AS QUALIFIED FROM AMERIPRISE_LLC;
+
+
